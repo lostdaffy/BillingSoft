@@ -11,7 +11,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',  // Backend URL
+        target: 'https://billingsoft-7p1r.onrender.com',  // Backend URL
         changeOrigin: true
       }
     }
