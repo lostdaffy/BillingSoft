@@ -14,7 +14,7 @@ const app = express();
 const corsOptions = {
   origin: [
     'http://localhost:3000',
-    'https://your-frontend.vercel.app',  // Replace with your frontend URL
+    'https://flourishing-brioche-ec97e7.netlify.app',  // Replace with your frontend URL
     'https://billingsoft-frontend.vercel.app',
     'https://*.netlify.app'
   ],
