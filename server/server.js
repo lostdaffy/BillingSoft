@@ -12,7 +12,7 @@ const app = express();
 
 // ✅ DYNAMIC CORS - सभी domains allow (Production safe)
 const allowedOrigins = [
-  'http://localhost:3000',
+  'http://localhost:5173',
   'https://flourishing-brioche-ec97e7.netlify.app',
   'https://billingsoft-7p1r.onrender.com',
   'https://*.netlify.app'
