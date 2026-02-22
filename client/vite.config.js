@@ -8,11 +8,12 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    port: 3000,
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'https://billingsoft-7p1r.onrender.com',  // Backend URL
-        changeOrigin: true
+        target: 'http://localhost:5000',  // Backend URL
+        changeOrigin: true,
+        secure: false
       }
     }
   }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -15,9 +16,10 @@ const Clients = () => {
     mobile: '',
     email: '',
     stateCode: '',
-    gst: ''
+    gst: ''  
   });
 
+  
   useEffect(() => {
     fetchClients();
   }, []);
@@ -42,7 +44,7 @@ const Clients = () => {
       mobile: '',
       email: '',
       stateCode: '',
-      gst: ''
+      gst: '' 
     });
     setEditingClient(null);
   };
@@ -58,7 +60,7 @@ const Clients = () => {
         mobile: client.mobile || '',
         email: client.email || '',
         stateCode: client.stateCode || '',
-        gst: client.gst || ''
+        gst: client.gst || ''  
       });
     } else {
       resetForm();
@@ -73,6 +75,7 @@ const Clients = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       if (editingClient) {
         await axios.put(`/api/clients/${editingClient._id}`, formData);
@@ -81,6 +84,7 @@ const Clients = () => {
         await axios.post('/api/clients', formData);
         toast.success('Client created successfully');
       }
+      
       fetchClients();
       handleCloseModal();
     } catch (error) {
@@ -92,6 +96,7 @@ const Clients = () => {
     if (!window.confirm('Are you sure you want to delete this client?')) {
       return;
     }
+
     try {
       await axios.delete(`/api/clients/${id}`);
       toast.success('Client deleted successfully');
@@ -103,273 +108,251 @@ const Clients = () => {
 
   if (loading) {
     return (
-      <div className="lg:ml-64 pt-20 bg-gray-50 min-h-screen flex items-center justify-center p-8">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 ml-64 pt-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="px-6">
-        {/* Header - EXACT Dashboard Style */}
-        <div className="flex items-center justify-between mb-8">
+    <div className="p-8 bg-gray-50 min-h-screen pt-20">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Clients</h1>
-            <p className="text-sm text-gray-500 mt-1 font-medium">Manage your clients and customers</p>
+            <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
+            <p className="text-gray-600 mt-1">Manage your client directory</p>
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg border border-indigo-600 shadow-sm hover:shadow-md transition-all duration-150 flex items-center space-x-2"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-colors border border-indigo-600"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>Add Client</span>
+            + New Client
           </button>
         </div>
 
-        {/* Clients Grid / Empty State */}
+        {/* Clients Grid/Table */}
         {clients.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-12 text-center">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No clients yet</h3>
-            <p className="text-gray-500 mb-6">Get started by adding your first client.</p>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-20 px-12">
+            <svg className="w-28 h-28 text-gray-400 mx-auto mb-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">No clients yet</h3>
+            <p className="text-xl text-gray-600 mb-10 max-w-lg mx-auto leading-relaxed">
+              Get started by adding your first client to your directory.
+            </p>
             <button
               onClick={() => handleOpenModal()}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg border border-indigo-600 shadow-sm hover:shadow-md transition-all duration-150"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-sm hover:shadow-md transition-all"
             >
               Add Your First Client
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {clients.map((client) => (
-              <div key={client._id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden group">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{client.name}</h3>
-                      {client.gst && (
-                        <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 mt-1">
-                          GST Registered
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      <button
-                        onClick={() => handleOpenModal(client)}
-                        className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all duration-150"
-                        title="Edit"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H8a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4 2h4m0 0L10 15l-2-2" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(client._id)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-150"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-sm divide-y divide-gray-100">
-                    {client.address && (
-                      <div className="pt-3">
-                        <span className="text-gray-500 font-medium">Address:</span>
-                        <p className="text-gray-900 mt-1">{client.address}</p>
-                      </div>
-                    )}
-                    <div className="pt-3 grid grid-cols-2 gap-4 text-xs">
-                      {client.mobile && (
-                        <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                          </svg>
-                          <span>{client.mobile}</span>
-                        </div>
-                      )}
-                      {client.email && (
-                        <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                          </svg>
-                          <span>{client.email}</span>
-                        </div>
-                      )}
-                    </div>
-                    {(client.aadhaar || client.panUid || client.stateCode) && (
-                      <div className="pt-3">
-                        <span className="text-gray-500 font-medium text-xs uppercase tracking-wider">Documents</span>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {client.aadhaar && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">Aadhaar</span>
-                          )}
-                          {client.panUid && (
-                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-md">PAN</span>
-                          )}
-                          {client.stateCode && (
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-md">{client.stateCode}</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-900">Client Directory</h2>
+                <Link to="#" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
+                  Export CSV →
+                </Link>
               </div>
-            ))}
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">Client Name</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">Mobile</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">Email</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">Address</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">GST Number</th>
+                    <th className="text-center py-3 px-6 font-semibold text-gray-700 text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {clients.map((client) => (
+                    <tr key={client._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-6 font-medium text-gray-900 text-sm">{client.name}</td>
+                      <td className="py-4 px-6 text-gray-700 text-sm">{client.mobile || '-'}</td>
+                      <td className="py-4 px-6 text-gray-700 text-sm max-w-xs truncate">
+                        {client.email || '-'}
+                      </td>
+                      <td className="py-4 px-6 text-gray-600 text-sm max-w-md truncate">
+                        {client.address}
+                      </td>
+                      <td className="py-4 px-6 text-gray-700 text-sm font-mono">
+                        {client.gst || '-'} 
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <button
+                            onClick={() => handleOpenModal(client)}
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1.5 rounded-md font-medium text-xs hover:shadow-sm transition-all"
+                            title="Edit client"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(client._id)}
+                            className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1.5 rounded-md font-medium text-xs hover:shadow-sm transition-all"
+                            title="Delete client"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {/* Modal - EXACT Dashboard Style */}
+        {/* Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-              {/* Modal Header */}
-              <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900">
-                        {editingClient ? 'Edit Client' : 'Add New Client'}
-                      </h2>
-                      <p className="text-sm text-gray-500">
-                        {editingClient ? 'Update client information' : 'Enter client details'}
-                      </p>
-                    </div>
-                  </div>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+              <div className="p-8 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {editingClient ? 'Edit Client' : 'New Client'}
+                  </h2>
                   <button
                     onClick={handleCloseModal}
-                    className="p-1.5 text-gray-400 hover:text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-150"
+                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
-              </div>
 
-              {/* Modal Body */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Client Name *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Client Name *
+                      </label>
                       <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                         required
+                        placeholder="Enter client full name"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Mobile Number
+                      </label>
                       <input
                         type="tel"
                         value={formData.mobile}
                         onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="e.g., +91 9876543210"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Address *
+                      </label>
                       <textarea
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        rows="3"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-vertical"
+                        rows="4"
                         required
+                        placeholder="Enter complete address"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                      </label>
                       <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="client@example.com"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Aadhaar Number
+                      </label>
                       <input
                         type="text"
                         value={formData.aadhaar}
                         onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        maxLength="12"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="1234 5678 9012"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">PAN / UID</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        PAN
+                      </label>
                       <input
                         type="text"
                         value={formData.panUid}
-                        onChange={(e) => setFormData({ ...formData, panUid: e.target.value.toUpperCase() })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 uppercase"
-                        maxLength="10"
+                        onChange={(e) => setFormData({ ...formData, panUid: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="ABCDE1234F"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">GST Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        GST *
+                      </label>
                       <input
                         type="text"
                         value={formData.gst}
-                        onChange={(e) => setFormData({ ...formData, gst: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        maxLength="15"
+                        onChange={(e) => setFormData({ ...formData, gst: e.target.value.toUpperCase() })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-mono tracking-wider uppercase"
+                        placeholder="09ABCDE1234F1Z5"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">State Code</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        State Code
+                      </label>
                       <input
                         type="text"
                         value={formData.stateCode}
-                        onChange={(e) => setFormData({ ...formData, stateCode: e.target.value.toUpperCase() })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 uppercase"
-                        maxLength="2"
+                        onChange={(e) => setFormData({ ...formData, stateCode: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="UP / 09"
+                        maxLength={2}
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
                     <button
                       type="button"
                       onClick={handleCloseModal}
-                      className="px-6 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-150"
+                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-semibold text-sm shadow-sm transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg border border-indigo-600 shadow-sm hover:shadow-md transition-all duration-150 flex items-center space-x-2"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-all"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>{editingClient ? 'Update Client' : 'Create Client'}</span>
+                      {editingClient ? 'Update Client' : 'Create Client'}
                     </button>
                   </div>
                 </form>

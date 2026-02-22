@@ -43,6 +43,7 @@ const invoiceSchema = new mongoose.Schema({
     aadhaar: { type: String, default: '' },
     panUid: { type: String, default: '' },
     mobile: { type: String, default: '' },
+    gst: { type: String, default: '' },
     stateCode: { type: String, default: '' }
   },
   invoiceDate: {

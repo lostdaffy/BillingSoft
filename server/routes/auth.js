@@ -102,9 +102,7 @@ router.post('/login', [
   }
 });
 
-// @route   GET /api/auth/me
-// @desc    Get current user
-// @access  Private
+
 router.get('/me', auth, async (req, res) => {
   try {
     res.json({
@@ -121,9 +119,7 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
-// @route   PUT /api/auth/company
-// @desc    Update company details
-// @access  Private
+
 router.put('/company', auth, async (req, res) => {
   try {
     const { name, gstin, mobile, address, dealsIn, bankDetails } = req.body;

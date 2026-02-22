@@ -3,9 +3,7 @@ const router = express.Router();
 const Client = require('../models/Client');
 const auth = require('../middleware/auth');
 
-// @route   GET /api/clients
-// @desc    Get all clients for logged in user
-// @access  Private
+
 router.get('/', auth, async (req, res) => {
   try {
     const clients = await Client.find({ userId: req.userId })
@@ -18,9 +16,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/clients/:id
-// @desc    Get single client
-// @access  Private
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const client = await Client.findOne({
@@ -39,9 +35,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// @route   POST /api/clients
-// @desc    Create new client
-// @access  Private
+
 router.post('/', auth, async (req, res) => {
   try {
     const { name, address, aadhaar, panUid, mobile, email, stateCode, gst } = req.body;
@@ -70,9 +64,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// @route   PUT /api/clients/:id
-// @desc    Update client
-// @access  Private
+
 router.put('/:id', auth, async (req, res) => {
   try {
     const { name, address, aadhaar, panUid, mobile, email, stateCode, gst } = req.body;
@@ -103,9 +95,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// @route   DELETE /api/clients/:id
-// @desc    Delete client
-// @access  Private
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     const client = await Client.findOneAndDelete({

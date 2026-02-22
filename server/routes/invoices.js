@@ -3,7 +3,6 @@ const router = express.Router();
 const Invoice = require('../models/Invoice');
 const auth = require('../middleware/auth');
 
-// Helper function to generate invoice number
 const generateInvoiceNumber = async (userId) => {
   const year = new Date().getFullYear();
   const lastInvoice = await Invoice.findOne({ userId })
@@ -20,7 +19,6 @@ const generateInvoiceNumber = async (userId) => {
   return `INV-${year}-${String(count).padStart(4, '0')}`;
 };
 
-// Helper function to convert number to words
 const numberToWords = (num) => {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
   const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -56,9 +54,6 @@ const numberToWords = (num) => {
   return convertTwoDigit(crores) + ' Crore' + (remainder ? ' ' + numberToWords(remainder) : '');
 };
 
-// @route   GET /api/invoices
-// @desc    Get all invoices for logged in user
-// @access  Private
 router.get('/', auth, async (req, res) => {
   try {
     const { status, limit = 50, page = 1 } = req.query;
@@ -87,9 +82,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/invoices/stats
-// @desc    Get dashboard statistics
-// @access  Private
+
 router.get('/stats', auth, async (req, res) => {
   try {
     const totalInvoices = await Invoice.countDocuments({ userId: req.userId });
@@ -127,9 +120,7 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/invoices/:id
-// @desc    Get single invoice
-// @access  Private
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const invoice = await Invoice.findOne({
@@ -148,9 +139,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// @route   POST /api/invoices
-// @desc    Create new invoice
-// @access  Private
+
 router.post('/', auth, async (req, res) => {
   try {
     const {
@@ -166,7 +155,6 @@ router.post('/', auth, async (req, res) => {
       notes
     } = req.body;
 
-    // Validate required fields
     if (!client || !client.name || !client.address) {
       return res.status(400).json({ message: 'Client details are required' });
     }
@@ -175,15 +163,12 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'At least one item is required' });
     }
 
-    // Calculate amounts
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const totalAmount = subtotal - (discount || 0) + (tax || 0);
     const amountInWords = numberToWords(Math.floor(totalAmount)) + ' Rupees Only';
 
-    // Generate invoice number
     const invoiceNumber = await generateInvoiceNumber(req.userId);
 
-    // Add serial numbers to items
     const numberedItems = items.map((item, index) => ({
       ...item,
       srNo: index + 1
@@ -215,9 +200,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// @route   PUT /api/invoices/:id
-// @desc    Update invoice
-// @access  Private
+
 router.put('/:id', auth, async (req, res) => {
   try {
     const invoice = await Invoice.findOne({
@@ -242,7 +225,6 @@ router.put('/:id', auth, async (req, res) => {
       notes
     } = req.body;
 
-    // Update fields
     if (invoiceType) invoice.invoiceType = invoiceType;
     if (client) invoice.client = client;
     if (invoiceDate) invoice.invoiceDate = invoiceDate;
@@ -251,7 +233,6 @@ router.put('/:id', auth, async (req, res) => {
     if (termsAndConditions !== undefined) invoice.termsAndConditions = termsAndConditions;
     if (notes !== undefined) invoice.notes = notes;
 
-    // Recalculate if items changed
     if (items) {
       const numberedItems = items.map((item, index) => ({
         ...item,
@@ -276,9 +257,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// @route   DELETE /api/invoices/:id
-// @desc    Delete invoice
-// @access  Private
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     const invoice = await Invoice.findOneAndDelete({
