@@ -245,14 +245,14 @@ const ViewInvoice = () => {
             <div className="flex justify-between items-center font-bold text-xs mb-0.5">
               <span>GSTIN: {companyGst}</span>
 
-              <span className="text-sm">{invoiceType}</span>
+              <span className="text-sm text-red-600">{invoiceType}</span>
 
               <span className="text-xs">Phone No: +91 {companyMobile}</span>
             </div>
 
             {/* Company Name */}
             <div className="text-center leading-[1.05] mt-4">
-              <span className="text-black text-5xl font-bold ">
+              <span className="text-red-600 text-5xl font-bold ">
                 {companyName}
               </span>
             </div>
@@ -345,10 +345,10 @@ const ViewInvoice = () => {
                   0;
                 return (
                   <tr key={i} className="h-7">
-                    <td className="border border-black px-1 py-0.5 text-center">
+                    <td className="border border-black px-1 py-0.5 text-center ">
                       {i + 1}.
                     </td>
-                    <td className="border border-black px-1.5 py-0.5 text-left">
+                    <td className="border border-black px-1.5 py-0.5 text-left text-xs">
                       {item.description}
                     </td>
                     <td className="border border-black px-1 py-0.5 text-center">
