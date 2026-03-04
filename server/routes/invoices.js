@@ -4,19 +4,10 @@ const Invoice = require('../models/Invoice');
 const auth = require('../middleware/auth');
 
 const generateInvoiceNumber = async (userId) => {
-  const year = new Date().getFullYear();
-  const lastInvoice = await Invoice.findOne({ userId })
-    .sort({ createdAt: -1 });
-  
-  let count = 1;
-  if (lastInvoice && lastInvoice.invoiceNumber) {
-    const parts = lastInvoice.invoiceNumber.split('-');
-    if (parts.length === 3 && parts[1] === year.toString()) {
-      count = parseInt(parts[2]) + 1;
-    }
-  }
-  
-  return `INV-${year}-${String(count).padStart(4, '0')}`;
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(100 + Math.random() * 900);
+
+  return `INV-${timestamp}-${random}`;
 };
 
 const numberToWords = (num) => {
