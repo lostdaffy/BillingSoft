@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from "../lib/api.js";
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -21,7 +21,7 @@ const EditInvoice = () => {
 
   const fetchInvoice = async () => {
     try {
-      const response = await axios.get(`/invoices/${id}`);
+     const response = await api.get(`/invoices/${id}`);
       const invoice = response.data;
       
       // ✅ Ensure client has gstin field (backward compatibility)
@@ -46,7 +46,7 @@ const EditInvoice = () => {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('/clients');
+      const response = await api.get('/clients');
       setClients(response.data);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -55,7 +55,7 @@ const EditInvoice = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/products');
+      const response = await api.get('/products');
       setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -202,7 +202,7 @@ const EditInvoice = () => {
     setSaving(true);
 
     try {
-      await axios.put(`/invoices/${id}`, formData);
+      await api.put(`/invoices/${id}`, formData);
       toast.success('Invoice updated successfully!');
       navigate(`/invoices/view/${id}`);
     } catch (error) {

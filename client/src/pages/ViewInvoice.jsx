@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import axios from "axios";
+import api from "../lib/api.js";
 import toast from "react-hot-toast";
 
 const ones = [
@@ -92,7 +92,7 @@ const ViewInvoice = () => {
 
   const loadInvoice = async () => {
     try {
-      const res = await axios.get(`/invoices/${id}`, {
+      const res = await api.get(`/invoices/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setInvoice(res.data);

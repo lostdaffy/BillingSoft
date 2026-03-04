@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from "../lib/api.js";
 import toast from 'react-hot-toast';
 
 const Products = () => {
@@ -21,7 +21,7 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/products');
+      const response = await api.get('/products');
       setProducts(response.data);
     } catch (error) {
       toast.error('Failed to fetch products');
@@ -67,10 +67,10 @@ const Products = () => {
 
     try {
       if (editingProduct) {
-        await axios.put(`/products/${editingProduct._id}`, formData);
+        await api.put(`/products/${editingProduct._id}`, formData);
         toast.success('Product updated successfully');
       } else {
-        await axios.post('/products', formData);
+        await api.post('/products', formData);
         toast.success('Product created successfully');
       }
       
@@ -87,7 +87,7 @@ const Products = () => {
     }
 
     try {
-      await axios.delete(`/products/${id}`);
+      await api.delete(`/products/${id}`);
       toast.success('Product deleted successfully');
       fetchProducts();
     } catch (error) {

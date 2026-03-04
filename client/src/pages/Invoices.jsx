@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from "../lib/api.js";
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -16,7 +16,7 @@ const Invoices = () => {
   const fetchInvoices = async () => {
     try {
       const url = filter ? `/invoices?status=${filter}` : '/invoices';
-      const response = await axios.get(url);
+      const response = await api.get(url);
       setInvoices(response.data.invoices);
     } catch (error) {
       toast.error('Failed to fetch invoices');
@@ -31,7 +31,7 @@ const Invoices = () => {
     }
 
     try {
-      await axios.delete(`/invoices/${id}`);
+      await api.delete(`/invoices/${id}`);
       toast.success('Invoice deleted successfully');
       fetchInvoices();
     } catch (error) {
