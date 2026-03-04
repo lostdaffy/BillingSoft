@@ -21,7 +21,7 @@ const EditInvoice = () => {
 
   const fetchInvoice = async () => {
     try {
-      const response = await axios.get(`/api/invoices/${id}`);
+      const response = await axios.get(`/invoices/${id}`);
       const invoice = response.data;
       
       // ✅ Ensure client has gstin field (backward compatibility)
@@ -46,7 +46,7 @@ const EditInvoice = () => {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('/api/clients');
+      const response = await axios.get('/clients');
       setClients(response.data);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -55,7 +55,7 @@ const EditInvoice = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products');
+      const response = await axios.get('/products');
       setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -202,7 +202,7 @@ const EditInvoice = () => {
     setSaving(true);
 
     try {
-      await axios.put(`/api/invoices/${id}`, formData);
+      await axios.put(`/invoices/${id}`, formData);
       toast.success('Invoice updated successfully!');
       navigate(`/invoices/view/${id}`);
     } catch (error) {

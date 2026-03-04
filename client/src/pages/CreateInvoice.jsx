@@ -51,7 +51,7 @@ const CreateInvoice = () => {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('/api/clients');
+      const response = await axios.get('/clients');
       setClients(response.data);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -60,7 +60,7 @@ const CreateInvoice = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products');
+      const response = await axios.get('/products');
       setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -206,7 +206,7 @@ const CreateInvoice = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/invoices', formData);
+      const response = await axios.post('/invoices', formData);
       toast.success('Invoice created successfully!');
       navigate(`/invoices/view/${response.data._id}`);
     } catch (error) {

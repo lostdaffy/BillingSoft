@@ -15,7 +15,7 @@ const Invoices = () => {
 
   const fetchInvoices = async () => {
     try {
-      const url = filter ? `/api/invoices?status=${filter}` : '/api/invoices';
+      const url = filter ? `/invoices?status=${filter}` : '/invoices';
       const response = await axios.get(url);
       setInvoices(response.data.invoices);
     } catch (error) {
@@ -31,7 +31,7 @@ const Invoices = () => {
     }
 
     try {
-      await axios.delete(`/api/invoices/${id}`);
+      await axios.delete(`/invoices/${id}`);
       toast.success('Invoice deleted successfully');
       fetchInvoices();
     } catch (error) {

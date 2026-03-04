@@ -26,7 +26,7 @@ const Clients = () => {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('/api/clients');
+      const response = await axios.get('/clients');
       setClients(response.data);
     } catch (error) {
       toast.error('Failed to fetch clients');
@@ -78,10 +78,10 @@ const Clients = () => {
 
     try {
       if (editingClient) {
-        await axios.put(`/api/clients/${editingClient._id}`, formData);
+        await axios.put(`/clients/${editingClient._id}`, formData);
         toast.success('Client updated successfully');
       } else {
-        await axios.post('/api/clients', formData);
+        await axios.post('/clients', formData);
         toast.success('Client created successfully');
       }
       
@@ -98,7 +98,7 @@ const Clients = () => {
     }
 
     try {
-      await axios.delete(`/api/clients/${id}`);
+      await axios.delete(`/clients/${id}`);
       toast.success('Client deleted successfully');
       fetchClients();
     } catch (error) {

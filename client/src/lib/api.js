@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://billingsoft-jqv4.onrender.com//api",
+  baseURL: "https://billingsoft-jqv4.onrender.com/api",
   headers: {
     "Content-Type": "application/json"
   }

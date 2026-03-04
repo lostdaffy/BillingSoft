@@ -21,7 +21,7 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products');
+      const response = await axios.get('/products');
       setProducts(response.data);
     } catch (error) {
       toast.error('Failed to fetch products');
@@ -67,10 +67,10 @@ const Products = () => {
 
     try {
       if (editingProduct) {
-        await axios.put(`/api/products/${editingProduct._id}`, formData);
+        await axios.put(`/products/${editingProduct._id}`, formData);
         toast.success('Product updated successfully');
       } else {
-        await axios.post('/api/products', formData);
+        await axios.post('/products', formData);
         toast.success('Product created successfully');
       }
       
@@ -87,7 +87,7 @@ const Products = () => {
     }
 
     try {
-      await axios.delete(`/api/products/${id}`);
+      await axios.delete(`/products/${id}`);
       toast.success('Product deleted successfully');
       fetchProducts();
     } catch (error) {
