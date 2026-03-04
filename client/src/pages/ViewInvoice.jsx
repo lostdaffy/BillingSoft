@@ -330,7 +330,7 @@ const ViewInvoice = () => {
                 ].map((h, i) => (
                   <th
                     key={i}
-                    className="border border-black py-2 text-center font-bold bg-white"
+                    className="border border-black py-2 text-center font-bold bg-white text-xs"
                   >
                     {h}
                   </th>
@@ -345,22 +345,22 @@ const ViewInvoice = () => {
                   0;
                 return (
                   <tr key={i} className="h-7">
-                    <td className="border border-black px-1 py-0.5 text-center ">
+                    <td className="border border-black px-1 py-0.5 text-center text-xs">
                       {i + 1}.
                     </td>
                     <td className="border border-black px-1.5 py-0.5 text-left text-xs">
                       {item.description}
                     </td>
-                    <td className="border border-black px-1 py-0.5 text-center">
+                    <td className="border border-black px-1 py-0.5 text-center text-xs">
                       {item.hsnCode || ""}
                     </td>
-                    <td className="border border-black px-1 py-0.5 text-center">
+                    <td className="border border-black px-1 py-0.5 text-center text-xs">
                       {item.quantity}
                     </td>
-                    <td className="border border-black px-1.25 py-0.5 text-right">
+                    <td className="border border-black px-1.25 py-0.5 text-right text-xs">
                       {parseFloat(item.rate || 0).toLocaleString("en-IN")}
                     </td>
-                    <td className="border border-black px-1.25 py-0.5 text-right font-bold">
+                    <td className="border border-black px-1.25 py-0.5 text-right font-bold text-xs">
                       {amt.toLocaleString("en-IN")}
                     </td>
                   </tr>
