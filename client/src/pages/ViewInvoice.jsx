@@ -92,7 +92,7 @@ const ViewInvoice = () => {
 
   const loadInvoice = async () => {
     try {
-      const res = await axios.get(`/api/invoices/${id}`, {
+      const res = await axios.get(`/invoices/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setInvoice(res.data);
