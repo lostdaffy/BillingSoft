@@ -11,14 +11,10 @@ const productRoutes = require('./routes/products');
 const app = express();
 
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      callback(null, true);
-    },
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: "https://flourishing-brioche-ec97e7.netlify.app",
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
