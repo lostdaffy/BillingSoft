@@ -21,6 +21,13 @@ const invoiceItemSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// Random Invoice Number Generator
+function generateInvoiceNumber() {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(100 + Math.random() * 900);
+  return `INV-${timestamp}-${random}`;
+}
+
 const invoiceSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,7 +36,6 @@ const invoiceSchema = new mongoose.Schema({
   },
   invoiceNumber: {
     type: String,
-    required: true,
     unique: true
   },
   invoiceType: {
@@ -101,6 +107,14 @@ const invoiceSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+invoiceSchema.pre('save', function (next) {
+  if (!this.invoiceNumber) {
+    this.invoiceNumber = generateInvoiceNumber();
+  }
+  this.updatedAt = Date.now();
+  next();
 });
 
 invoiceSchema.index({ userId: 1, invoiceNumber: 1 });
