@@ -12,7 +12,7 @@ const app = express();
 
 
 app.use(cors({
-  origin: "https://ebillsoft.netlify.app/",
+  origin: "https://ebillsoft.netlify.app",
   credentials: true
 }));
 
