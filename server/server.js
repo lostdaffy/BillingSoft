@@ -12,7 +12,7 @@ const app = express();
 
 
 app.use(cors({
-  origin: "https://flourishing-brioche-ec97e7.netlify.app",
+  origin: "https://ebillsoft.netlify.app/",
   credentials: true
 }));
 
