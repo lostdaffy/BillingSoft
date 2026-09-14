@@ -704,9 +704,11 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
             <p className="text-lg font-bold text-slate-900 tabular-nums">{formatCurrency(totals.totalAmount)}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate(-1)}>
-              Cancel
-            </Button>
+            <span className="hidden sm:block">
+              <Button variant="ghost" onClick={() => navigate(-1)}>
+                Cancel
+              </Button>
+            </span>
             {actions}
           </div>
         </div>

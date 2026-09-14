@@ -42,8 +42,9 @@
 }
 
 @layer components {
+  /* min-w-0 keeps wide tables scrolling inside the card instead of stretching grid columns */
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-xs;
+    @apply min-w-0 rounded-xl border border-slate-200 bg-white shadow-xs;
   }
 
   .input {
@@ -80,6 +81,14 @@
 
   .row-link {
     @apply cursor-pointer transition-colors hover:bg-slate-50;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

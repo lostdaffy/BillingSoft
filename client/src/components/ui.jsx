@@ -343,11 +343,11 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'brand', to, c
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-xs font-medium text-slate-500">{label}</p>
-        <p className="mt-1 truncate text-lg font-bold text-slate-900 tabular-nums sm:text-xl">{value}</p>
-        {hint && <p className="mt-0.5 truncate text-xs text-slate-500">{hint}</p>}
+        <p className="mt-1 text-[15px] font-bold break-all text-slate-900 tabular-nums sm:truncate sm:text-xl sm:break-normal">{value}</p>
+        {hint && <p className="mt-0.5 text-xs text-slate-500 sm:truncate">{hint}</p>}
       </div>
       {Icon && (
-        <div className={cx('flex size-9 shrink-0 items-center justify-center rounded-lg', STAT_TONES[tone])}>
+        <div className={cx('hidden size-9 shrink-0 items-center justify-center rounded-lg sm:flex', STAT_TONES[tone])}>
           <Icon className="size-5" />
         </div>
       )}
@@ -383,7 +383,7 @@ export function PageHeader({ title, subtitle, actions, backTo, badge }) {
 
 export function Tabs({ tabs, value, onChange, className }) {
   return (
-    <div className={cx('flex gap-1 overflow-x-auto border-b border-slate-200', className)}>
+    <div className={cx('no-scrollbar flex gap-1 overflow-x-auto border-b border-slate-200', className)}>
       {tabs.map((tab) => (
         <button
           key={tab.value}

@@ -88,7 +88,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
         <StatCard label="Today's Sales" value={formatCurrency(data.today.sales)} hint={`${data.today.invoices} invoice(s)`} icon={ArrowTrendingUpIcon} tone="brand" to="/sales" />
         <StatCard label="This Month" value={formatCurrency(data.month.sales)} hint={`${data.month.invoices} invoices`} icon={DocumentTextIcon} tone="violet" to="/reports?tab=sales" />
         <StatCard label="Received (Month)" value={formatCurrency(data.month.received)} hint={`FY ${formatCompactCurrency(data.year.received)}`} icon={BanknotesIcon} tone="green" to="/payments" />

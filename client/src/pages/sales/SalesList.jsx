@@ -113,7 +113,31 @@ export default function SalesList({ kind }) {
             }
           />
         ) : (
-          <div className={cx('overflow-x-auto transition-opacity', loading && 'opacity-60')}>
+          <>
+          <ul className={cx('divide-y divide-slate-100 md:hidden', loading && 'opacity-60')}>
+            {data.invoices.map((invoice) => (
+              <li key={invoice._id}>
+                <button type="button" onClick={() => navigate(`/sales/${invoice._id}`)} className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left active:bg-slate-50">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-900">{invoice.client?.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {invoice.invoiceNumber} · {formatDate(invoice.invoiceDate)}
+                    </p>
+                    <div className="mt-1.5">
+                      <StatusBadge status={invoice.status} overdue={invoice.isOverdue} />
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.totalAmount)}</p>
+                    {isInvoices && invoice.balanceDue > 0 && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
+                      <p className="text-xs text-amber-700">Due {formatCurrency(invoice.balanceDue)}</p>
+                    )}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className={cx('hidden overflow-x-auto transition-opacity md:block', loading && 'opacity-60')}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -159,6 +183,7 @@ export default function SalesList({ kind }) {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {data && <Pagination page={data.pagination.page} pages={data.pagination.pages} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}

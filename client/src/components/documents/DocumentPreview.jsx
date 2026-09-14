@@ -21,7 +21,7 @@ export function PreviewFrame({ children }) {
   }, []);
 
   return (
-    <div ref={ref} className="w-full">
+    <div ref={ref} className="w-full min-w-0">
       <div style={{ zoom: scale }} className="mx-auto w-fit shadow-[0_1px_3px_rgba(15,23,42,0.08),0_12px_32px_rgba(15,23,42,0.10)]">
         {children}
       </div>

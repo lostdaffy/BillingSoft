@@ -232,7 +232,7 @@ export default function SalesView() {
       {doc.status === 'CANCELLED' && <Banner tone="red">This invoice is cancelled and excluded from reports.</Banner>}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-xl border border-slate-200 bg-slate-100/70 p-3 sm:p-6">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-100/70 p-3 sm:p-6">
           <PreviewFrame>
             <DocumentPreview printRef={printRef} doc={doc} company={company} settings={user?.settings} />
           </PreviewFrame>
