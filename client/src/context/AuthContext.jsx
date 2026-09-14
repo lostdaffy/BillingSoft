@@ -1,139 +1,84 @@
-import { createContext, useState, useContext, useEffect } from "react";
-import api from "../lib/api.js";
-import toast from "react-hot-toast";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import api, { getToken, setToken } from '../lib/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-
-  return context;
-};
-
-export const AuthProvider = ({ children }) => {
-
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState(() => (getToken() ? 'loading' : 'ready'));
+  const [slowStart, setSlowStart] = useState(false);
 
-  useEffect(() => {
-    loadUser();
+  const loadSession = useCallback(async () => {
+    if (!getToken()) {
+      setStatus('ready');
+      return;
+    }
+    setStatus('loading');
+    const timer = setTimeout(() => setSlowStart(true), 5000);
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data.user);
+      setStatus('ready');
+    } catch (error) {
+      if (error.response?.status === 401) {
+        setToken(null);
+        setUser(null);
+        setStatus('ready');
+      } else {
+        setStatus('offline');
+      }
+    } finally {
+      clearTimeout(timer);
+      setSlowStart(false);
+    }
   }, []);
 
-  const loadUser = async () => {
-    try {
-      const token = localStorage.getItem("token");
+  useEffect(() => {
+    loadSession();
+  }, [loadSession]);
 
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await api.get("/auth/me");
-
-      setUser(response.data.user);
-
-    } catch (error) {
-      localStorage.removeItem("token");
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const login = async (email, password) => {
-    try {
-
-      const response = await api.post("/auth/login", {
-        email,
-        password
+  useEffect(() => {
+    const onExpired = () => {
+      setUser((current) => {
+        if (current) toast.error('Your session has expired. Please log in again.', { id: 'session-expired' });
+        return null;
       });
+    };
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, []);
 
-      localStorage.setItem("token", response.data.token);
-      setUser(response.data.user);
+  const login = useCallback(async (email, password) => {
+    const { data } = await api.post('/auth/login', { email, password });
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }, []);
 
-      toast.success("Login successful!");
+  const register = useCallback(async (payload) => {
+    const { data } = await api.post('/auth/register', payload);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }, []);
 
-      return true;
-
-    } catch (error) {
-
-      toast.error(error.response?.data?.message || "Login failed");
-
-      return false;
-    }
-  };
-
-  const register = async (name, email, password) => {
-    try {
-
-      const response = await api.post("/auth/register", {
-        name,
-        email,
-        password
-      });
-
-      localStorage.setItem("token", response.data.token);
-      setUser(response.data.user);
-
-      toast.success("Registration successful!");
-
-      return true;
-
-    } catch (error) {
-
-      toast.error(error.response?.data?.message || "Registration failed");
-
-      return false;
-    }
-  };
-
-  const logout = () => {
-
-    localStorage.removeItem("token");
-
+  const logout = useCallback(() => {
+    setToken(null);
     setUser(null);
+  }, []);
 
-    toast.success("Logged out successfully");
-  };
-
-  const updateCompany = async (companyData) => {
-    try {
-
-      const response = await api.put("/auth/company", companyData);
-
-      setUser({
-        ...user,
-        company: response.data.company
-      });
-
-      toast.success("Company details updated!");
-
-      return true;
-
-    } catch (error) {
-
-      toast.error(error.response?.data?.message || "Update failed");
-
-      return false;
-    }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register,
-        logout,
-        updateCompany
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, status, slowStart, login, register, logout, setUser, retry: loadSession }),
+    [user, status, slowStart, login, register, logout, loadSession]
   );
-};
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used inside AuthProvider');
+  return context;
+}

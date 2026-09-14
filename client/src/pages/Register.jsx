@@ -1,132 +1,65 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { useDocumentTitle } from '../lib/hooks';
+import AuthLayout from '../components/AuthLayout';
+import PasswordInput from '../components/PasswordInput';
+import { Button, TextInput } from '../components/ui';
 
-const Register = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [loading, setLoading] = useState(false);
+export default function Register() {
+  useDocumentTitle('Create account');
   const { register } = useAuth();
-  const navigate = useNavigate();
+  const [form, setForm] = useState({ name: '', businessName: '', email: '', password: '', confirmPassword: '' });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
+  const bind = (field) => ({ value: form[field], onChange: (event) => setForm({ ...form, [field]: event.target.value }) });
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const next = {};
+    if (!form.name.trim()) next.name = 'Your name is required';
+    if (!form.businessName.trim()) next.businessName = 'Business name is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'Enter a valid email address';
+    if (form.password.length < 6) next.password = 'Use at least 6 characters';
+    if (form.password !== form.confirmPassword) next.confirmPassword = 'Passwords do not match';
+    setErrors(next);
+    if (Object.keys(next).length) return;
 
     setLoading(true);
-    const success = await register(formData.name, formData.email, formData.password);
-    setLoading(false);
-    
-    if (success) {
-      navigate('/');
+    try {
+      await register({ name: form.name.trim(), businessName: form.businessName.trim(), email: form.email.trim(), password: form.password });
+      toast.success('Account created! Complete your business profile to start billing.');
+    } catch (err) {
+      toast.error(err.message);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Create Account</h1>
-          <p className="text-gray-600 text-lg">Join us and start managing your invoices today</p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm placeholder-gray-400"
-              placeholder="John Doe"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm placeholder-gray-400"
-              placeholder="your@email.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm placeholder-gray-400"
-              placeholder="At least 6 characters"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              required
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm placeholder-gray-400"
-              placeholder="Confirm your password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Creating Account...</span>
-              </>
-            ) : (
-              'Create Account'
-            )}
-          </button>
-        </form>
-
-        {/* Login Link */}
-        <div className="text-center pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-700 hover:underline transition-colors">
-              Login here
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+    <AuthLayout
+      title="Create your account"
+      subtitle="Start billing in under two minutes."
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-brand-700 hover:underline">
+            Log in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <TextInput label="Your Name" autoComplete="name" autoFocus {...bind('name')} error={errors.name} />
+        <TextInput label="Business Name" autoComplete="organization" {...bind('businessName')} error={errors.businessName} placeholder="As it should appear on invoices" />
+        <TextInput label="Email address" type="email" autoComplete="email" {...bind('email')} error={errors.email} />
+        <PasswordInput label="Password" autoComplete="new-password" {...bind('password')} error={errors.password} />
+        <PasswordInput label="Confirm Password" autoComplete="new-password" {...bind('confirmPassword')} error={errors.confirmPassword} />
+        <Button type="submit" size="lg" className="w-full" loading={loading}>
+          Create Account
+        </Button>
+      </form>
+    </AuthLayout>
   );
-};
-
-export default Register;
+}

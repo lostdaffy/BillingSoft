@@ -1,280 +1,259 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { format } from "date-fns";
-import api from "../lib/api.js";
+import { Link } from 'react-router-dom';
+import {
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  BanknotesIcon,
+  ChatBubbleLeftRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  CubeIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  ShoppingCartIcon,
+  WalletIcon
+} from '@heroicons/react/24/outline';
+import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import { useApi, useDocumentTitle } from '../lib/hooks';
+import { cx } from '../lib/cx';
+import { daysFromToday, formatCompactCurrency, formatCurrency, formatDate, formatNumber, whatsappLink } from '../lib/format';
+import BarChart from '../components/BarChart';
+import { Button, Card, EmptyState, ErrorState, PageLoader, StatCard, StatusBadge } from '../components/ui';
 
-const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalInvoices: 0,
-    totalAmount: 0,
-    paidAmount: 0,
-    pendingAmount: 0,
-    recentInvoices: [],
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      const response = await api.get("/invoices/stats");
-      setStats(response.data);
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      PAID: "bg-green-100 text-green-800",
-      SENT: "bg-blue-100 text-blue-800",
-      DRAFT: "bg-gray-100 text-gray-800",
-      OVERDUE: "bg-red-100 text-red-800",
-      CANCELLED: "bg-yellow-100 text-yellow-800",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800";
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 ml-64 pt-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+function SetupChecklist({ steps }) {
+  const done = steps.filter((step) => step.done).length;
+  return (
+    <Card title="Get started" subtitle={`${done} of ${steps.length} steps complete`}>
+      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${(done / steps.length) * 100}%` }} />
       </div>
-    );
-  }
+      <ul className="space-y-1">
+        {steps.map((step) => (
+          <li key={step.label}>
+            <Link to={step.to} className={cx('flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-slate-50', step.done ? 'text-slate-400' : 'text-slate-800')}>
+              <CheckCircleIcon className={cx('size-5 shrink-0', step.done ? 'text-emerald-500' : 'text-slate-300')} />
+              <span className={step.done ? 'line-through' : 'font-medium'}>{step.label}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+export default function Dashboard() {
+  useDocumentTitle('Dashboard');
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useApi(() => api.get('/dashboard').then((res) => res.data), []);
+
+  if (loading && !data) return <PageLoader label="Loading dashboard..." />;
+  if (error && !data) return <ErrorState error={error} onRetry={reload} />;
+
+  const company = user?.company || {};
+  const firstName = (user?.name || '').split(' ')[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  const steps = [
+    { label: 'Add GSTIN, address and state', to: '/settings', done: Boolean(company.stateCode && company.address) },
+    { label: 'Add bank / UPI details for payments', to: '/settings?tab=bank', done: Boolean(company.bankDetails?.accountNumber || company.bankDetails?.upiId) },
+    { label: 'Add your first item', to: '/items?new=1', done: data.counts.items > 0 },
+    { label: 'Add your first customer', to: '/parties?new=1', done: data.counts.parties > 0 },
+    { label: 'Create your first invoice', to: '/sales/new', done: data.recentInvoices.length > 0 }
+  ];
+  const setupPending = steps.some((step) => !step.done);
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">
-              Overview of your business activity
-            </p>
-          </div>
-          <Link
-            to="/invoices/create"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-colors border border-indigo-600"
-          >
-            + New Invoice
-          </Link>
+    <>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {greeting}
+            {firstName ? `, ${firstName}` : ''}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {company.name || 'Your business'} · Financial Year 20{data.financialYear}
+          </p>
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">
-                  Total Invoices
-                </p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {stats.totalInvoices}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-indigo-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">
-                  Paid Amount
-                </p>
-                <p className="text-3xl font-bold text-green-600 mt-1">
-                  ₹{stats.paidAmount.toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">
-                  Pending Amount
-                </p>
-                <p className="text-3xl font-bold text-orange-600 mt-1">
-                  ₹{stats.pendingAmount.toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-orange-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">
-                  Total Amount
-                </p>
-                <p className="text-3xl font-bold text-indigo-600 mt-1">
-                  ₹{stats.totalAmount.toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-indigo-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <Button icon={DocumentTextIcon} to="/sales/new">
+            New Invoice
+          </Button>
+          <Button variant="secondary" icon={ShoppingCartIcon} to="/purchases/new">
+            Purchase
+          </Button>
+          <Button variant="secondary" icon={WalletIcon} to="/expenses?new=1">
+            Expense
+          </Button>
         </div>
+      </div>
 
-        {/* Recent Invoices */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Recent Invoices
-              </h2>
-              <Link
-                to="/invoices"
-                className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
-              >
-                View All →
-              </Link>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="Today's Sales" value={formatCurrency(data.today.sales)} hint={`${data.today.invoices} invoice(s)`} icon={ArrowTrendingUpIcon} tone="brand" to="/sales" />
+        <StatCard label="This Month" value={formatCurrency(data.month.sales)} hint={`${data.month.invoices} invoices`} icon={DocumentTextIcon} tone="violet" to="/reports?tab=sales" />
+        <StatCard label="Received (Month)" value={formatCurrency(data.month.received)} hint={`FY ${formatCompactCurrency(data.year.received)}`} icon={BanknotesIcon} tone="green" to="/payments" />
+        <StatCard
+          label="To Receive"
+          value={formatCurrency(data.receivable.amount)}
+          hint={data.overdue.count ? `${formatCurrency(data.overdue.amount)} overdue` : `${data.receivable.count} open invoices`}
+          icon={ClockIcon}
+          tone={data.overdue.count ? 'red' : 'amber'}
+          to="/reports?tab=receivables"
+        />
+        <StatCard label="To Pay" value={formatCurrency(data.payable.amount)} hint={`${data.payable.count} unpaid bills`} icon={ArrowTrendingDownIcon} tone="blue" to="/reports?tab=payables" />
+        <StatCard label="Expenses (Month)" value={formatCurrency(data.month.expenses)} hint={`Purchases ${formatCompactCurrency(data.month.purchases)}`} icon={WalletIcon} tone="gray" to="/expenses" />
+      </div>
 
-          {stats.recentInvoices.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-600 mb-4">No invoices yet</p>
-              <Link
-                to="/invoices/create"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-medium text-sm shadow-sm hover:shadow-md transition-colors"
-              >
-                Create your first invoice
-              </Link>
-            </div>
-          ) : (
+      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+        <Card
+          title="Sales, Collections & Expenses"
+          subtitle="Last 12 months"
+          className="xl:col-span-2"
+          actions={
+            <span className="text-xs text-slate-500">
+              FY sales <span className="font-semibold text-slate-900">{formatCurrency(data.year.sales)}</span>
+            </span>
+          }
+        >
+          <BarChart
+            data={data.monthly}
+            series={[
+              { key: 'sales', label: 'Sales', color: '#6366f1' },
+              { key: 'received', label: 'Received', color: '#10b981' },
+              { key: 'expenses', label: 'Expenses', color: '#f59e0b' }
+            ]}
+          />
+        </Card>
+
+        {setupPending ? (
+          <SetupChecklist steps={steps} />
+        ) : (
+          <Card title="Top Customers" subtitle="This financial year" padded={false}>
+            {data.topCustomers.length ? (
+              <ul className="divide-y divide-slate-100">
+                {data.topCustomers.map((customer, index) => (
+                  <li key={customer.name} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">{index + 1}</span>
+                      <div className="min-w-0">
+                        {customer.clientId ? (
+                          <Link to={`/parties/${customer.clientId}`} className="block truncate text-sm font-medium text-slate-900 hover:text-brand-700">
+                            {customer.name}
+                          </Link>
+                        ) : (
+                          <p className="truncate text-sm font-medium text-slate-900">{customer.name}</p>
+                        )}
+                        <p className="text-xs text-slate-500">{customer.count} invoices</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(customer.total)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState title="No sales yet" description="Your best customers will appear here." />
+            )}
+          </Card>
+        )}
+      </div>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+        <Card title="Recent Invoices" className="xl:col-span-2" padded={false} actions={<Button variant="ghost" size="sm" to="/sales">View all</Button>}>
+          {data.recentInvoices.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="data-table">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">
-                      Invoice No.
-                    </th>
-                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">
-                      Client
-                    </th>
-                    <th className="text-left py-3 px-6 font-semibold text-gray-700 text-sm">
-                      Date
-                    </th>
-                    <th className="text-right py-3 px-6 font-semibold text-gray-700 text-sm">
-                      Amount
-                    </th>
-                    <th className="text-center py-3 px-6 font-semibold text-gray-700 text-sm">
-                      Status
-                    </th>
-                    <th className="text-center py-3 px-6 font-semibold text-gray-700 text-sm">
-                      Action
-                    </th>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th className="text-right">Amount</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {stats.recentInvoices.map((invoice) => (
-                    <tr
-                      key={invoice._id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 px-6 font-medium text-gray-900 text-sm">
-                        {invoice.invoiceNumber}
-                      </td>
-                      <td className="py-4 px-6 text-gray-700 text-sm">
-                        {invoice.client.name}
-                      </td>
-                      <td className="py-4 px-6 text-gray-600 text-sm">
-                        {format(new Date(invoice.invoiceDate), "dd MMM yyyy")}
-                      </td>
-                      <td className="py-4 px-6 text-right font-semibold text-indigo-600 text-sm">
-                        ₹{invoice.totalAmount.toLocaleString("en-IN")}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}
-                        >
-                          {invoice.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <Link
-                          to={`/invoices/view/${invoice._id}`}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md font-medium text-xs shadow-sm hover:shadow-md transition-colors whitespace-nowrap"
-                        >
-                          View
+                <tbody>
+                  {data.recentInvoices.map((invoice) => (
+                    <tr key={invoice._id}>
+                      <td>
+                        <Link to={`/sales/${invoice._id}`} className="font-medium text-brand-700 hover:underline">
+                          {invoice.invoiceNumber}
                         </Link>
+                      </td>
+                      <td className="max-w-48 truncate">{invoice.client?.name}</td>
+                      <td>{formatDate(invoice.invoiceDate)}</td>
+                      <td className="text-right font-medium tabular-nums">{formatCurrency(invoice.totalAmount)}</td>
+                      <td>
+                        <StatusBadge status={invoice.status} overdue={invoice.isOverdue} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          ) : (
+            <EmptyState icon={DocumentTextIcon} title="No invoices yet" description="Create your first GST invoice in under a minute." action={<Button to="/sales/new">Create Invoice</Button>} />
           )}
+        </Card>
+
+        <div className="space-y-5">
+          <Card title="Overdue Payments" padded={false} actions={data.overdue.count > 0 && <span className="text-xs font-semibold text-rose-600">{formatCurrency(data.overdue.amount)}</span>}>
+            {data.overdueInvoices.length ? (
+              <ul className="divide-y divide-slate-100">
+                {data.overdueInvoices.map((invoice) => (
+                  <li key={invoice._id} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <Link to={`/sales/${invoice._id}`} className="block truncate text-sm font-medium text-slate-900 hover:text-brand-700">
+                        {invoice.client?.name}
+                      </Link>
+                      <p className="text-xs text-rose-600">
+                        {formatCurrency(invoice.balanceDue)} · {Math.abs(daysFromToday(invoice.dueDate))} days late
+                      </p>
+                    </div>
+                    <a
+                      href={whatsappLink(
+                        invoice.client?.mobile,
+                        `Dear ${invoice.client?.name},\n\nThis is a gentle reminder that ${formatCurrency(invoice.balanceDue)} is pending against invoice ${invoice.invoiceNumber} dated ${formatDate(invoice.invoiceDate)}, which was due on ${formatDate(invoice.dueDate)}.\n\nThank you,\n${company.name || ''}`
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50"
+                      title="Send WhatsApp reminder"
+                    >
+                      <ChatBubbleLeftRightIcon className="size-5" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="flex items-center gap-2 px-5 py-6 text-sm text-slate-500">
+                <CheckCircleIcon className="size-5 text-emerald-500" /> No overdue invoices. Great job!
+              </p>
+            )}
+          </Card>
+
+          <Card title="Low Stock" padded={false} actions={<Button variant="ghost" size="sm" to="/items">Items</Button>}>
+            {data.lowStock.length ? (
+              <ul className="divide-y divide-slate-100">
+                {data.lowStock.map((item) => (
+                  <li key={item._id} className="flex items-center justify-between gap-3 px-5 py-2.5">
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-slate-800">
+                      <ExclamationTriangleIcon className={cx('size-4 shrink-0', item.stock <= 0 ? 'text-rose-500' : 'text-amber-500')} />
+                      <span className="truncate">{item.name}</span>
+                    </span>
+                    <span className={cx('text-sm font-semibold tabular-nums', item.stock <= 0 ? 'text-rose-600' : 'text-amber-700')}>
+                      {formatNumber(item.stock)} {item.unit}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="flex items-center gap-2 px-5 py-6 text-sm text-slate-500">
+                <CubeIcon className="size-5 text-slate-400" /> All items are well stocked.
+              </p>
+            )}
+          </Card>
         </div>
       </div>
-    </div>
+    </>
   );
-};
-
-export default Dashboard;
+}

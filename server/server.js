@@ -1,50 +1,40 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
 require('dotenv').config();
+const mongoose = require('mongoose');
+const { createApp } = require('./app');
+const { runMigrations } = require('./services/migrate');
 
-const authRoutes = require('./routes/auth');
-const invoiceRoutes = require('./routes/invoices');
-const clientRoutes = require('./routes/clients');
-const productRoutes = require('./routes/products');
+const missing = ['MONGODB_URI', 'JWT_SECRET'].filter((key) => !process.env[key]);
+if (missing.length) {
+  console.error(`Missing required environment variables: ${missing.join(', ')}. See .env.example.`);
+  process.exit(1);
+}
+if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET.length < 32) {
+  console.warn('Warning: JWT_SECRET should be a random string of at least 32 characters.');
+}
 
-const app = express();
+const start = async () => {
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('MongoDB connected');
 
+  if (process.env.AUTO_MIGRATE !== 'false') {
+    await runMigrations();
+  }
 
-app.use(cors({
-  origin: "https://flourishing-brioche-ec97e7.netlify.app",
-  credentials: true
-}));
+  const app = createApp();
+  const port = process.env.PORT || 5000;
+  const server = app.listen(port, () => console.log(`Server running on port ${port}`));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  const shutdown = (signal) => {
+    console.log(`${signal} received, shutting down`);
+    server.close(() => {
+      mongoose.connection.close(false).finally(() => process.exit(0));
+    });
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+};
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB Connected Successfully'))
-  .catch(err => console.error('MongoDB Connection Error:', err));
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/invoices', invoiceRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/products', productRoutes);
-
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is running', timestamp: new Date() });
-});
-
-// Error Handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : {}
-  });
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+start().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
