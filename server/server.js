@@ -20,16 +20,9 @@ const start = async () => {
     await runMigrations();
   }
 
-<<<<<<< HEAD
   const app = createApp();
   const port = process.env.PORT || 5000;
   const server = app.listen(port, () => console.log(`Server running on port ${port}`));
-=======
-app.use(cors({
-  origin: "https://ebillsoft.netlify.app",
-  credentials: true
-}));
->>>>>>> 732518d756b60fbd9e0643fb98b1521cf3c64f88
 
   const shutdown = (signal) => {
     console.log(`${signal} received, shutting down`);
