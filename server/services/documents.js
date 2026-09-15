@@ -3,6 +3,9 @@ const { num, round2, amountToWords } = require('../utils/numbers');
 const { toDateOnly, today } = require('../utils/dates');
 const { HttpError } = require('../utils/asyncHandler');
 const { PAYMENT_MODES } = require('../utils/constants');
+const { isValidAadhaar, normaliseAadhaar } = require('../utils/aadhaar');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const str = (value) => (value === undefined || value === null ? '' : String(value).trim());
 
@@ -18,6 +21,11 @@ const paginate = (query = {}) => {
 
 const partySnapshot = (input = {}) => {
   const gst = str(input.gst || input.gstin).toUpperCase();
+  const email = str(input.email).toLowerCase();
+  if (email && !EMAIL_REGEX.test(email)) throw new HttpError(400, 'Party email address is invalid');
+  // Aadhaar identifies parties that have no GSTIN, so it is not kept alongside one.
+  const aadhaar = gst ? '' : normaliseAadhaar(input.aadhaar);
+  if (aadhaar && !isValidAadhaar(aadhaar)) throw new HttpError(400, 'Aadhaar number is invalid. Please check the 12 digits.');
   return {
     name: str(input.name),
     address: str(input.address),
@@ -26,10 +34,10 @@ const partySnapshot = (input = {}) => {
     stateCode: normaliseStateCode(input.stateCode) || stateCodeFromGstin(gst),
     pincode: str(input.pincode),
     mobile: str(input.mobile),
-    email: str(input.email).toLowerCase(),
+    email,
     gst,
     panUid: str(input.panUid).toUpperCase(),
-    aadhaar: str(input.aadhaar)
+    aadhaar
   };
 };
 

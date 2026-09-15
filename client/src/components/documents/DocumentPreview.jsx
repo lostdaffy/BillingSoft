@@ -1,11 +1,27 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { SALES_TYPES, stateLabel, stateName } from '../../lib/constants';
-import { amountToWords, formatAmount, formatDateNumeric, formatNumber, toNumber } from '../../lib/format';
+import { SALES_TYPES, documentLabel, stateLabel, stateName } from '../../lib/constants';
+import { amountToWords, formatAmount, formatDateNumeric, formatNumber, round2, toNumber } from '../../lib/format';
 import { taxSummary } from '../../lib/gst';
+import { maskAadhaar } from '../../lib/aadhaar';
 import { APP_NAME } from '../../config';
 
 const PAGE_WIDTH = 794; // A4 width at 96 dpi
+const INK = '#0f172a';
+
+// Relative luminance of a #rrggbb colour (WCAG formula).
+const luminance = (hex) => {
+  const match = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!match) return 0;
+  const [r, g, b] = [0, 2, 4].map((offset) => {
+    const channel = parseInt(match[1].slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+// A theme colour gives at least 4.5:1 contrast against white up to this luminance.
+const isDarkEnough = (hex) => luminance(hex) <= 0.183;
 
 /** Scales the fixed-width A4 page down to fit narrow screens without affecting print. */
 export function PreviewFrame({ children }) {
@@ -29,21 +45,25 @@ export function PreviewFrame({ children }) {
   );
 }
 
+function SectionTitle({ children, className = 'mb-1' }) {
+  return <p className={`${className} text-[10px] font-bold tracking-wider text-slate-800 uppercase`}>{children}</p>;
+}
+
 function MetaRow({ label, value, strong }) {
   if (!value) return null;
   return (
     <tr>
-      <td className="py-0.5 pr-3 align-top whitespace-nowrap text-slate-500">{label}</td>
-      <td className={strong ? 'py-0.5 font-bold text-slate-900' : 'py-0.5 font-medium text-slate-800'}>{value}</td>
+      <td className="py-0.5 pr-3 align-top whitespace-nowrap text-slate-700">{label}</td>
+      <td className={strong ? 'py-0.5 font-bold text-slate-900' : 'py-0.5 font-medium text-slate-900'}>{value}</td>
     </tr>
   );
 }
 
 function TotalRow({ label, value, strong, negative }) {
   return (
-    <tr className={strong ? 'font-semibold text-slate-900' : ''}>
-      <td className="px-2 py-1 text-slate-600">{label}</td>
-      <td className="px-2 py-1 text-right tabular-nums">
+    <tr className={strong ? 'font-bold' : ''}>
+      <td className="px-2 py-1 text-slate-800">{label}</td>
+      <td className="px-2 py-1 text-right font-medium tabular-nums">
         {negative ? '- ' : ''}
         {formatAmount(Math.abs(toNumber(value)))}
       </td>
@@ -53,6 +73,9 @@ function TotalRow({ label, value, strong, negative }) {
 
 export default function DocumentPreview({ doc, kind = 'SALE', company = {}, settings = {}, printRef }) {
   const theme = settings.themeColor || '#4f46e5';
+  const themeIsDark = isDarkEnough(theme);
+  const onTheme = themeIsDark ? '#ffffff' : INK;
+  const titleColor = themeIsDark ? theme : INK;
   const isSale = kind === 'SALE';
   const type = isSale ? doc.invoiceType || 'INVOICE' : 'PURCHASE';
   const party = (isSale ? doc.client : doc.supplier) || {};
@@ -60,14 +83,24 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
   const date = isSale ? doc.invoiceDate : doc.billDate;
   const items = doc.items || [];
   const bank = company.bankDetails || {};
+  // "Without tax" format: final prices only, no GST columns or breakup.
+  const inclusive = isSale && doc.taxMode === 'INCLUSIVE';
 
   let title = 'PURCHASE BILL';
-  if (isSale) title = type === 'INVOICE' ? (company.gstin ? 'TAX INVOICE' : 'INVOICE') : SALES_TYPES[type]?.printTitle || 'INVOICE';
+  if (isSale && type === 'INVOICE') title = inclusive ? 'BILL' : company.gstin ? 'TAX INVOICE' : 'INVOICE';
+  else if (isSale) title = SALES_TYPES[type]?.printTitle || 'INVOICE';
 
   const hasDiscount = items.some((item) => toNumber(item.discountPercent) > 0);
-  const hasTax = toNumber(doc.totalTax) > 0 || items.some((item) => toNumber(item.taxRate) > 0);
+  const hasTax = !inclusive && (toNumber(doc.totalTax) > 0 || items.some((item) => toNumber(item.taxRate) > 0));
   const summary = hasTax ? taxSummary(items) : [];
   const interState = Boolean(doc.isInterState);
+
+  // In the inclusive format each line shows what the customer pays (qty x rate less discount),
+  // and round off is shown against that so the printed figures add up exactly.
+  const lineTotal = (item) =>
+    inclusive ? round2(toNumber(item.quantity) * toNumber(item.rate) * (1 - toNumber(item.discountPercent) / 100)) : toNumber(item.amount);
+  const itemsTotal = round2(items.reduce((sum, item) => sum + lineTotal(item), 0));
+  const roundOff = inclusive ? round2(toNumber(doc.totalAmount) - (itemsTotal + toNumber(doc.otherCharges) - toNumber(doc.discount))) : toNumber(doc.roundOff);
 
   const companyState = company.state || stateName(company.stateCode);
   const companyAddress = [company.address, company.city, [companyState, company.pincode].filter(Boolean).join(' - ')].filter(Boolean).join(', ');
@@ -89,12 +122,17 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
   const cell = 'px-2 py-1.5';
 
   return (
-    <div ref={printRef} className="w-[794px] bg-white p-9 text-[11px] leading-[1.45] text-slate-700 print:w-full print:p-0">
+    <div
+      ref={printRef}
+      // Keeps the coloured header and total rows when the browser's "Background graphics" print option is off.
+      style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+      className="w-[794px] bg-white p-9 text-[11px] leading-[1.45] text-slate-900 print:w-full print:p-0"
+    >
       {doc.status === 'CANCELLED' && (
-        <div className="mb-3 rounded border border-rose-300 bg-rose-50 py-1 text-center text-[11px] font-bold tracking-[0.2em] text-rose-700">CANCELLED</div>
+        <div className="mb-3 rounded border border-rose-400 bg-rose-50 py-1 text-center text-[11px] font-bold tracking-[0.2em] text-rose-800">CANCELLED</div>
       )}
       {doc.status === 'DRAFT' && (
-        <div className="mb-3 rounded border border-slate-300 bg-slate-50 py-1 text-center text-[11px] font-bold tracking-[0.2em] text-slate-500">DRAFT</div>
+        <div className="mb-3 rounded border border-slate-500 bg-slate-100 py-1 text-center text-[11px] font-bold tracking-[0.2em] text-slate-800">DRAFT</div>
       )}
 
       {/* Header */}
@@ -102,46 +140,55 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
         <div className="flex min-w-0 items-start gap-4">
           {company.logo && <img src={company.logo} alt="" className="max-h-16 max-w-[130px] object-contain" />}
           <div className="min-w-0">
-            <h1 className="text-[20px] leading-tight font-bold text-slate-900">{company.name}</h1>
-            {(company.tagline || company.dealsIn) && <p className="text-[10px] text-slate-500">{company.tagline || company.dealsIn}</p>}
+            <h1 className="text-[20px] leading-tight font-bold">{company.name}</h1>
+            {(company.tagline || company.dealsIn) && <p className="text-[10.5px] text-slate-700">{company.tagline || company.dealsIn}</p>}
             {companyAddress && <p className="mt-1 max-w-[380px]">{companyAddress}</p>}
             {(company.mobile || company.email || company.website) && (
-              <p className="mt-0.5">{[company.mobile && `Ph: ${company.mobile}`, company.email, company.website].filter(Boolean).join('  |  ')}</p>
+              <p className="mt-0.5">
+                {[company.mobile && `Ph: ${company.mobile}`, company.email && `Email: ${company.email}`, company.website && `Web: ${company.website}`].filter(Boolean).join('  |  ')}
+              </p>
             )}
             {company.gstin && (
-              <p className="mt-0.5 font-semibold text-slate-900">
+              <p className="mt-0.5 font-bold">
                 GSTIN: {company.gstin}
-                {company.pan ? <span className="ml-3 font-normal text-slate-600">PAN: {company.pan}</span> : null}
+                {company.pan ? <span className="ml-3 font-medium">PAN: {company.pan}</span> : null}
               </p>
             )}
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-[17px] font-bold tracking-wide" style={{ color: theme }}>
+          <p className="text-[17px] font-bold tracking-wide" style={{ color: titleColor }}>
             {title}
           </p>
-          {isSale && type === 'INVOICE' && <p className="text-[9px] tracking-wider text-slate-500 uppercase">Original for Recipient</p>}
+          {isSale && type === 'INVOICE' && <p className="text-[10px] font-medium tracking-wider text-slate-700 uppercase">Original for Recipient</p>}
         </div>
       </div>
 
       {/* Party + document details */}
-      <div className="grid grid-cols-2 border-b border-slate-300">
-        <div className="border-r border-slate-300 py-3 pr-4">
-          <p className="mb-1 text-[9px] font-semibold tracking-wider text-slate-500 uppercase">{isSale ? 'Bill To' : 'Supplier'}</p>
-          <p className="text-[13px] font-semibold text-slate-900">{party.name}</p>
+      <div className="grid grid-cols-2 border-b border-slate-500">
+        <div className="border-r border-slate-500 py-3 pr-4">
+          <SectionTitle>{isSale ? 'Bill To' : 'Supplier'}</SectionTitle>
+          <p className="text-[13px] font-bold">{party.name}</p>
           {partyAddress && <p>{partyAddress}</p>}
           {party.stateCode && <p>State: {stateLabel(party.stateCode)}</p>}
-          {party.gst && (
+          {party.gst ? (
             <p>
-              <span className="font-semibold text-slate-900">GSTIN:</span> {party.gst}
+              <span className="font-bold">GSTIN:</span> {party.gst}
             </p>
+          ) : (
+            party.aadhaar && (
+              <p>
+                <span className="font-bold">Aadhaar:</span> {maskAadhaar(party.aadhaar)}
+              </p>
+            )
           )}
           {party.mobile && <p>Ph: {party.mobile}</p>}
+          {party.email && <p>Email: {party.email}</p>}
         </div>
         <div className="py-3 pl-4">
           <table className="w-full">
             <tbody>
-              <MetaRow label={isSale ? `${SALES_TYPES[type]?.label || 'Invoice'} No.` : 'Purchase Ref.'} value={number} strong />
+              <MetaRow label={isSale ? `${documentLabel(doc)} No.` : 'Purchase Ref.'} value={number} strong />
               {!isSale && <MetaRow label="Supplier Bill No." value={doc.billNumber} strong />}
               <MetaRow label="Date" value={formatDateNumeric(date)} />
               <MetaRow label={dueLabel} value={formatDateNumeric(doc.dueDate)} />
@@ -154,8 +201,8 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
         </div>
       </div>
       {doc.shippingAddress && (
-        <div className="border-b border-slate-300 py-2">
-          <span className="text-[9px] font-semibold tracking-wider text-slate-500 uppercase">Ship To: </span>
+        <div className="border-b border-slate-500 py-2">
+          <span className="text-[10px] font-bold tracking-wider text-slate-800 uppercase">Ship To: </span>
           {doc.shippingAddress}
         </div>
       )}
@@ -163,25 +210,25 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
       {/* Items */}
       <table className="mt-3 w-full border-collapse">
         <thead>
-          <tr className="text-left text-[10px] text-white" style={{ backgroundColor: theme }}>
-            <th className={`${cell} w-7 font-semibold`}>#</th>
-            <th className={`${cell} font-semibold`}>Item & Description</th>
-            <th className={`${cell} font-semibold`}>HSN/SAC</th>
-            <th className={`${cell} text-right font-semibold`}>Qty</th>
-            <th className={`${cell} text-right font-semibold`}>Rate</th>
-            {hasDiscount && <th className={`${cell} text-right font-semibold`}>Disc.</th>}
-            {hasTax && <th className={`${cell} text-right font-semibold`}>Taxable</th>}
-            {hasTax && <th className={`${cell} text-right font-semibold`}>GST</th>}
-            <th className={`${cell} text-right font-semibold`}>Amount</th>
+          <tr className="text-left text-[10.5px]" style={{ backgroundColor: theme, color: onTheme }}>
+            <th className={`${cell} w-7 font-bold`}>#</th>
+            <th className={`${cell} font-bold`}>Item & Description</th>
+            <th className={`${cell} font-bold`}>HSN/SAC</th>
+            <th className={`${cell} text-right font-bold`}>Qty</th>
+            <th className={`${cell} text-right font-bold`}>Rate</th>
+            {hasDiscount && <th className={`${cell} text-right font-bold`}>Disc.</th>}
+            {hasTax && <th className={`${cell} text-right font-bold`}>Taxable</th>}
+            {hasTax && <th className={`${cell} text-right font-bold`}>GST</th>}
+            <th className={`${cell} text-right font-bold`}>Amount</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, index) => {
             const lineTax = toNumber(item.cgst) + toNumber(item.sgst) + toNumber(item.igst);
             return (
-              <tr key={`${item.description}-${index}`} className="border-b border-slate-200 align-top">
+              <tr key={`${item.description}-${index}`} className="border-b border-slate-400 align-top">
                 <td className={cell}>{index + 1}</td>
-                <td className={`${cell} font-medium text-slate-900`}>{item.description}</td>
+                <td className={`${cell} font-semibold`}>{item.description}</td>
                 <td className={cell}>{item.hsnCode}</td>
                 <td className={`${cell} text-right whitespace-nowrap`}>
                   {formatNumber(item.quantity)} {item.unit}
@@ -191,10 +238,10 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
                 {hasTax && <td className={`${cell} text-right tabular-nums`}>{formatAmount(item.taxableValue ?? item.amount)}</td>}
                 {hasTax && (
                   <td className={`${cell} text-right whitespace-nowrap tabular-nums`}>
-                    {toNumber(item.taxRate)}%<div className="text-[9px] text-slate-500">{formatAmount(lineTax)}</div>
+                    {toNumber(item.taxRate)}%<div className="text-[10px] text-slate-700">{formatAmount(lineTax)}</div>
                   </td>
                 )}
-                <td className={`${cell} text-right font-medium text-slate-900 tabular-nums`}>{formatAmount(item.amount)}</td>
+                <td className={`${cell} text-right font-semibold tabular-nums`}>{formatAmount(lineTotal(item))}</td>
               </tr>
             );
           })}
@@ -205,27 +252,27 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
       <div className="mt-3 grid grid-cols-[1fr_250px] gap-6">
         <div className="min-w-0">
           {hasTax && summary.length > 0 && (
-            <table className="w-full border border-slate-200 text-[10px]">
-              <thead className="bg-slate-50 text-slate-600">
+            <table className="w-full border border-slate-500 text-[10.5px]">
+              <thead className="bg-slate-100">
                 <tr>
-                  <th className="px-2 py-1 text-left font-semibold">HSN/SAC</th>
-                  <th className="px-2 py-1 text-right font-semibold">Taxable</th>
+                  <th className="px-2 py-1 text-left font-bold">HSN/SAC</th>
+                  <th className="px-2 py-1 text-right font-bold">Taxable</th>
                   {interState ? (
-                    <th className="px-2 py-1 text-right font-semibold">IGST</th>
+                    <th className="px-2 py-1 text-right font-bold">IGST</th>
                   ) : (
                     <>
-                      <th className="px-2 py-1 text-right font-semibold">CGST</th>
-                      <th className="px-2 py-1 text-right font-semibold">SGST</th>
+                      <th className="px-2 py-1 text-right font-bold">CGST</th>
+                      <th className="px-2 py-1 text-right font-bold">SGST</th>
                     </>
                   )}
-                  <th className="px-2 py-1 text-right font-semibold">Total Tax</th>
+                  <th className="px-2 py-1 text-right font-bold">Total Tax</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.map((row) => (
-                  <tr key={`${row.hsnCode}-${row.rate}`} className="border-t border-slate-200">
+                  <tr key={`${row.hsnCode}-${row.rate}`} className="border-t border-slate-400">
                     <td className="px-2 py-1">
-                      {row.hsnCode} <span className="text-slate-400">@{row.rate}%</span>
+                      {row.hsnCode} <span className="text-slate-700">@{row.rate}%</span>
                     </td>
                     <td className="px-2 py-1 text-right tabular-nums">{formatAmount(row.taxable)}</td>
                     {interState ? (
@@ -243,23 +290,26 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
             </table>
           )}
           <p className="mt-3">
-            <span className="font-semibold text-slate-900">Amount in words: </span>
+            <span className="font-bold">Amount in words: </span>
             {doc.amountInWords || amountToWords(doc.totalAmount)}
           </p>
         </div>
 
         <table className="w-full self-start">
           <tbody>
-            <TotalRow label={hasTax ? 'Taxable Amount' : 'Subtotal'} value={doc.subtotal} />
-            {toNumber(doc.cgst) > 0 && <TotalRow label="CGST" value={doc.cgst} />}
-            {toNumber(doc.sgst) > 0 && <TotalRow label="SGST" value={doc.sgst} />}
-            {toNumber(doc.igst) > 0 && <TotalRow label="IGST" value={doc.igst} />}
+            <TotalRow label={hasTax ? 'Taxable Amount' : 'Subtotal'} value={inclusive ? itemsTotal : doc.subtotal} />
+            {!inclusive && toNumber(doc.cgst) > 0 && <TotalRow label="CGST" value={doc.cgst} />}
+            {!inclusive && toNumber(doc.sgst) > 0 && <TotalRow label="SGST" value={doc.sgst} />}
+            {!inclusive && toNumber(doc.igst) > 0 && <TotalRow label="IGST" value={doc.igst} />}
             {toNumber(doc.otherCharges) > 0 && <TotalRow label={doc.otherChargesLabel || 'Other Charges'} value={doc.otherCharges} />}
             {toNumber(doc.discount) > 0 && <TotalRow label="Discount" value={doc.discount} negative />}
-            {toNumber(doc.roundOff) !== 0 && <TotalRow label="Round Off" value={doc.roundOff} negative={toNumber(doc.roundOff) < 0} />}
-            <tr className="text-white" style={{ backgroundColor: theme }}>
-              <td className="px-2 py-2 text-[12px] font-bold">Total</td>
-              <td className="px-2 py-2 text-right text-[12px] font-bold tabular-nums">₹ {formatAmount(doc.totalAmount)}</td>
+            {roundOff !== 0 && <TotalRow label="Round Off" value={roundOff} negative={roundOff < 0} />}
+            <tr style={{ backgroundColor: theme, color: onTheme }}>
+              <td className="px-2 py-2 text-[12.5px] font-bold">
+                {inclusive ? 'Total Amount' : 'Total'}
+                {inclusive && <span className="block text-[10px] font-semibold">(Inclusive of all taxes)</span>}
+              </td>
+              <td className="px-2 py-2 text-right text-[12.5px] font-bold tabular-nums">₹ {formatAmount(doc.totalAmount)}</td>
             </tr>
             {toNumber(doc.amountPaid) > 0 && (
               <>
@@ -272,13 +322,13 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
       </div>
 
       {/* Payment details, terms and signature */}
-      <div className="mt-5 grid grid-cols-[1fr_210px] gap-6 border-t border-slate-300 pt-3">
+      <div className="mt-5 grid grid-cols-[1fr_210px] gap-6 border-t border-slate-500 pt-3">
         <div className="space-y-3">
           {(showBank || showUpi) && (
             <div className="flex items-start gap-5">
               {showBank && (
                 <div>
-                  <p className="mb-1 text-[9px] font-semibold tracking-wider text-slate-500 uppercase">Bank Details</p>
+                  <SectionTitle>Bank Details</SectionTitle>
                   <table>
                     <tbody>
                       <MetaRow label="Account Name" value={bank.accountHolder || company.name} />
@@ -292,39 +342,39 @@ export default function DocumentPreview({ doc, kind = 'SALE', company = {}, sett
               )}
               {showUpi && (
                 <div className="text-center">
-                  <QRCodeSVG value={upiUrl} size={86} level="M" />
-                  <p className="mt-1 text-[9px] text-slate-500">Scan to pay ₹{formatAmount(payable)}</p>
+                  <QRCodeSVG value={upiUrl} size={86} level="M" fgColor="#000000" />
+                  <p className="mt-1 text-[10px] font-medium text-slate-800">Scan to pay ₹{formatAmount(payable)}</p>
                 </div>
               )}
             </div>
           )}
           {doc.termsAndConditions && (
             <div>
-              <p className="mb-0.5 text-[9px] font-semibold tracking-wider text-slate-500 uppercase">Terms & Conditions</p>
-              <p className="text-[10px] whitespace-pre-line text-slate-600">{doc.termsAndConditions}</p>
+              <SectionTitle className="mb-0.5">Terms & Conditions</SectionTitle>
+              <p className="text-[10.5px] whitespace-pre-line text-slate-800">{doc.termsAndConditions}</p>
             </div>
           )}
           {doc.notes && (
             <div>
-              <p className="mb-0.5 text-[9px] font-semibold tracking-wider text-slate-500 uppercase">Notes</p>
-              <p className="text-[10px] whitespace-pre-line">{doc.notes}</p>
+              <SectionTitle className="mb-0.5">Notes</SectionTitle>
+              <p className="text-[10.5px] whitespace-pre-line">{doc.notes}</p>
             </div>
           )}
         </div>
         {isSale && (
           <div className="flex flex-col items-end justify-between text-right">
-            <p className="font-semibold text-slate-900">For {company.name}</p>
+            <p className="font-bold">For {company.name}</p>
             {settings.showSignature !== false && company.signature ? (
               <img src={company.signature} alt="" className="my-2 max-h-14 max-w-[180px] object-contain" />
             ) : (
               <div className="h-14" />
             )}
-            <p className="w-full border-t border-slate-400 pt-1 text-[10px] text-slate-600">Authorised Signatory</p>
+            <p className="w-full border-t border-slate-700 pt-1 text-[10.5px] font-medium text-slate-800">Authorised Signatory</p>
           </div>
         )}
       </div>
 
-      <p className="mt-6 text-center text-[9px] text-slate-400">This is a computer generated document · Created with {APP_NAME}</p>
+      <p className="mt-6 text-center text-[10px] text-slate-600">This is a computer generated document · Created with {APP_NAME}</p>
     </div>
   );
 }

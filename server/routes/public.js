@@ -3,6 +3,7 @@ const { rateLimit } = require('express-rate-limit');
 const Invoice = require('../models/Invoice');
 const User = require('../models/User');
 const { asyncHandler, HttpError } = require('../utils/asyncHandler');
+const { maskAadhaar } = require('../utils/aadhaar');
 
 const router = express.Router();
 
@@ -33,6 +34,7 @@ router.get(
     delete data.userId;
     delete data.shareToken;
     delete data.clientId;
+    if (data.client && data.client.aadhaar) data.client.aadhaar = maskAadhaar(data.client.aadhaar);
     data.payments = (data.payments || []).map(({ amount, date, mode }) => ({ amount, date, mode }));
 
     const { showBankDetails, showUpiQr, showSignature, themeColor } = owner.settings || {};

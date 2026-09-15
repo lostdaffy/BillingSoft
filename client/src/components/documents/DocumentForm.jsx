@@ -8,6 +8,7 @@ import { useApi } from '../../lib/hooks';
 import { calculateDocument } from '../../lib/gst';
 import { cx } from '../../lib/cx';
 import {
+  DOCUMENT_CHOICES,
   GST_RATE_OPTIONS,
   PAYMENT_MODES,
   SALES_TYPES,
@@ -18,6 +19,7 @@ import {
   stateName
 } from '../../lib/constants';
 import { addDaysInput, amountToWords, formatAmount, formatCurrency, formatNumber, toInputDate, toNumber, todayInput } from '../../lib/format';
+import { formatAadhaarInput, isValidAadhaar, normaliseAadhaar } from '../../lib/aadhaar';
 import { Badge, Button, Card, Checkbox, Combobox, Field, IconButton, SelectInput, TextArea, TextInput, Toggle } from '../ui';
 import PartyFormModal from '../PartyFormModal';
 import ItemFormModal from '../ItemFormModal';
@@ -31,7 +33,7 @@ const newRowKey = () => {
 const ROW_GRID =
   'md:grid-cols-[minmax(0,2.8fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.85fr)_minmax(0,1.1fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,1.15fr)_2rem]';
 
-const SALES_TYPE_OPTIONS = Object.entries(SALES_TYPES).map(([value, meta]) => ({ value, label: meta.label }));
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const blankItem = () => ({ key: newRowKey(), productId: '', description: '', hsnCode: '', unit: 'Nos', quantity: '1', rate: '', discountPercent: '', taxRate: '0' });
 
@@ -52,13 +54,39 @@ const partyFields = (party = {}) => ({
   mobile: party.mobile || '',
   email: party.email || '',
   gst: party.gst || '',
+  aadhaar: formatAadhaarInput(party.aadhaar),
   address: party.address || '',
   city: party.city || '',
   stateCode: party.stateCode || '',
   pincode: party.pincode || ''
 });
 
-function buildInitialState({ mode, doc, docType, settings, party, isEdit }) {
+function DocumentTypeChooser({ choices, docType, taxMode, onChoose }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+      {choices.map((choice) => {
+        const active = choice.docType === docType && (!choice.taxMode || choice.taxMode === taxMode);
+        return (
+          <button
+            key={choice.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChoose(choice)}
+            className={cx(
+              'rounded-xl border px-3 py-2.5 text-left transition-colors',
+              active ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+            )}
+          >
+            <span className={cx('block text-sm font-semibold', active ? 'text-brand-700' : 'text-slate-900')}>{choice.label}</span>
+            <span className="mt-0.5 block text-xs text-slate-500">{choice.description}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function buildInitialState({ mode, doc, docType, taxMode, settings, party, isEdit }) {
   const isSale = mode === 'SALE';
   const source = doc || {};
   const type = isSale ? source.invoiceType || docType || 'INVOICE' : 'PURCHASE';
@@ -74,6 +102,7 @@ function buildInitialState({ mode, doc, docType, settings, party, isEdit }) {
 
   return {
     docType: type,
+    taxMode: isSale && (source.taxMode || taxMode) === 'INCLUSIVE' ? 'INCLUSIVE' : 'GST',
     number: isEdit ? (isSale ? source.invoiceNumber : source.purchaseNumber) || '' : '',
     billNumber: isEdit ? source.billNumber || '' : '',
     date,
@@ -117,14 +146,14 @@ function SummaryLine({ label, value, className }) {
   );
 }
 
-export default function DocumentForm({ mode, doc, docType, party, isEdit = false }) {
+export default function DocumentForm({ mode, doc, docType, taxMode, party, isEdit = false }) {
   const isSale = mode === 'SALE';
   const navigate = useNavigate();
   const { user } = useAuth();
   const company = user?.company || {};
   const settings = user?.settings || {};
 
-  const [form, setForm] = useState(() => buildInitialState({ mode, doc, docType, settings, party, isEdit }));
+  const [form, setForm] = useState(() => buildInitialState({ mode, doc, docType, taxMode, settings, party, isEdit }));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState('');
   const [partyModal, setPartyModal] = useState(null);
@@ -143,6 +172,11 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
   const typeMeta = SALES_TYPES[form.docType] || SALES_TYPES.INVOICE;
   const isInvoice = isSale && form.docType === 'INVOICE';
   const isQuote = isSale && !isInvoice;
+  const isInclusive = isSale && form.taxMode === 'INCLUSIVE';
+  const pricesIncludeTax = isInclusive || form.pricesIncludeTax;
+  const docLabel = isInvoice && isInclusive ? 'Bill' : typeMeta.label;
+  const typeChoices = !isSale ? [] : !isEdit ? DOCUMENT_CHOICES : doc.invoiceType === 'INVOICE' ? DOCUMENT_CHOICES.filter((choice) => choice.docType === 'INVOICE') : [];
+  const chooseType = (choice) => setForm((current) => ({ ...current, docType: choice.docType, taxMode: choice.taxMode || current.taxMode }));
   const originalNumber = isEdit ? (isSale ? doc.invoiceNumber : doc.purchaseNumber) : '';
   const placeOfSupply = isSale ? form.placeOfSupply : form.party.stateCode;
   const partyLabel = isSale ? 'Customer' : 'Supplier';
@@ -153,12 +187,12 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
         items: form.items,
         companyStateCode: company.stateCode,
         placeOfSupply,
-        pricesIncludeTax: form.pricesIncludeTax,
+        pricesIncludeTax,
         discount: form.discount,
         otherCharges: form.otherCharges,
         roundOff: settings.roundOff !== false
       }),
-    [form.items, company.stateCode, placeOfSupply, form.pricesIncludeTax, form.discount, form.otherCharges, settings.roundOff]
+    [form.items, company.stateCode, placeOfSupply, pricesIncludeTax, form.discount, form.otherCharges, settings.roundOff]
   );
 
   const productById = useMemo(() => new Map((products.data || []).map((product) => [product._id, product])), [products.data]);
@@ -178,6 +212,7 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
         }
       }
       if (field === 'stateCode') next.placeOfSupply = value;
+      if (field === 'aadhaar') nextParty.aadhaar = formatAadhaarInput(value);
       return next;
     });
 
@@ -249,6 +284,8 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
     const next = {};
     if (!form.party.name.trim()) next.partyName = `${partyLabel} name is required`;
     if (form.party.gst && !isValidGstin(form.party.gst)) next.partyGst = 'Enter a valid 15-character GSTIN';
+    if (!form.party.gst && form.party.aadhaar && !isValidAadhaar(form.party.aadhaar)) next.partyAadhaar = 'Enter a valid 12-digit Aadhaar number';
+    if (form.party.email.trim() && !EMAIL_REGEX.test(form.party.email.trim())) next.partyEmail = 'Enter a valid email address';
     if (!form.date) next.date = 'Date is required';
     if (form.dueDate && form.date && form.dueDate < form.date) next.dueDate = 'Cannot be before the document date';
     if (!filledItems.length) next.items = 'Add at least one item';
@@ -271,14 +308,20 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
       discountPercent: toNumber(item.discountPercent),
       taxRate: toNumber(item.taxRate)
     }));
-    const partyPayload = { ...form.party, name: form.party.name.trim(), state: stateName(form.party.stateCode) };
+    const partyPayload = {
+      ...form.party,
+      name: form.party.name.trim(),
+      email: form.party.email.trim(),
+      aadhaar: form.party.gst ? '' : normaliseAadhaar(form.party.aadhaar),
+      state: stateName(form.party.stateCode)
+    };
     const payment =
       !isEdit && (isInvoice || !isSale) && form.payment.enabled && toNumber(form.payment.amount) > 0 && status !== 'DRAFT'
         ? { initialPayment: { amount: toNumber(form.payment.amount), mode: form.payment.mode, reference: form.payment.reference } }
         : {};
     const common = {
       items,
-      pricesIncludeTax: form.pricesIncludeTax,
+      pricesIncludeTax,
       discount: toNumber(form.discount),
       otherCharges: toNumber(form.otherCharges),
       otherChargesLabel: form.otherChargesLabel.trim() || 'Other Charges',
@@ -295,6 +338,7 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
     return {
       ...common,
       invoiceType: form.docType,
+      taxMode: form.taxMode,
       ...(manualNumber && manualNumber !== originalNumber ? { invoiceNumber: manualNumber } : {}),
       invoiceDate: form.date,
       clientId: form.partyId || null,
@@ -317,7 +361,7 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
       const base = isSale ? '/invoices' : '/purchases';
       const payload = buildPayload(status);
       const { data } = isEdit ? await api.put(`${base}/${doc._id}`, payload) : await api.post(base, payload);
-      toast.success(isEdit ? 'Changes saved' : `${isSale ? typeMeta.label : 'Purchase bill'} ${isSale ? data.invoiceNumber : data.billNumber || data.purchaseNumber} saved`);
+      toast.success(isEdit ? 'Changes saved' : `${isSale ? docLabel : 'Purchase bill'} ${isSale ? data.invoiceNumber : data.billNumber || data.purchaseNumber} saved`);
       navigate(`${isSale ? '/sales' : '/purchases'}/${data._id}`, { replace: true });
     } catch (error) {
       toast.error(error.message);
@@ -340,7 +384,7 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
           Save Draft
         </Button>
         <Button loading={saving === 'UNPAID'} disabled={Boolean(saving)} onClick={() => save('UNPAID')}>
-          {isEdit ? 'Save & Finalise' : 'Save Invoice'}
+          {isEdit ? 'Save & Finalise' : `Save ${docLabel}`}
         </Button>
       </>
     );
@@ -376,6 +420,26 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
               Update business profile
             </Link>
           </p>
+        </div>
+      )}
+
+      {isSale && (typeChoices.length > 1 || isQuote) && (
+        <div className="card mb-5 p-4">
+          {typeChoices.length > 1 && (
+            <>
+              <p className="mb-2 text-sm font-semibold text-slate-900">{isEdit ? 'Bill Format' : 'What do you want to create?'}</p>
+              <DocumentTypeChooser choices={typeChoices} docType={form.docType} taxMode={form.taxMode} onChoose={chooseType} />
+            </>
+          )}
+          {isQuote && (
+            <Toggle
+              className={typeChoices.length > 1 ? 'mt-4 border-t border-slate-100 pt-4' : ''}
+              label="Show GST breakup on the printed document"
+              description="Turn off to print only final prices, with the total marked as inclusive of all taxes"
+              checked={!isInclusive}
+              onChange={(value) => set('taxMode', value ? 'GST' : 'INCLUSIVE')}
+            />
+          )}
         </div>
       )}
 
@@ -431,6 +495,14 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
             </Field>
             <TextInput label="Mobile" value={form.party.mobile} onChange={(event) => setPartyField('mobile', event.target.value)} inputMode="tel" />
             <TextInput
+              label="Email"
+              type="email"
+              value={form.party.email}
+              onChange={(event) => setPartyField('email', event.target.value)}
+              error={errors.partyEmail}
+              placeholder={`${partyLabel}'s email address`}
+            />
+            <TextInput
               label="GSTIN"
               value={form.party.gst}
               onChange={(event) => setPartyField('gst', event.target.value)}
@@ -438,9 +510,20 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
               error={errors.partyGst}
               placeholder={isSale ? 'Leave blank for B2C / unregistered' : 'Supplier GSTIN'}
             />
-            <TextArea label="Address" rows={2} value={form.party.address} onChange={(event) => setPartyField('address', event.target.value)} className="sm:col-span-2" />
             <SelectInput label="State" placeholder="Select state" options={STATE_OPTIONS} value={form.party.stateCode} onChange={(event) => setPartyField('stateCode', event.target.value)} />
-            <TextInput label="Email" type="email" value={form.party.email} onChange={(event) => setPartyField('email', event.target.value)} />
+            {!form.party.gst && (
+              <TextInput
+                label="Aadhaar Number"
+                value={form.party.aadhaar}
+                onChange={(event) => setPartyField('aadhaar', event.target.value)}
+                inputMode="numeric"
+                maxLength={14}
+                placeholder="XXXX XXXX XXXX"
+                error={errors.partyAadhaar}
+                hint={`Optional, for ${partyLabel.toLowerCase()}s without GSTIN. Printed masked (XXXX XXXX 1234).`}
+              />
+            )}
+            <TextArea label="Address" rows={2} value={form.party.address} onChange={(event) => setPartyField('address', event.target.value)} className="sm:col-span-2" />
             {!form.partyId && form.party.name.trim() && (
               <Checkbox
                 className="sm:col-span-2"
@@ -463,12 +546,11 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
           </div>
         </Card>
 
-        <Card title={isSale ? `${typeMeta.label} Details` : 'Bill Details'}>
+        <Card title={isSale ? `${docLabel} Details` : 'Bill Details'}>
           <div className="space-y-4">
-            {isSale && !isEdit && <SelectInput label="Document Type" options={SALES_TYPE_OPTIONS} value={form.docType} onChange={(event) => set('docType', event.target.value)} />}
             {isSale ? (
               <TextInput
-                label={`${typeMeta.label} Number`}
+                label={`${docLabel} Number`}
                 value={form.number}
                 onChange={(event) => set('number', event.target.value)}
                 placeholder={nextNumber.data || 'Auto-generated'}
@@ -496,10 +578,22 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
                 onChange={(event) => set('placeOfSupply', event.target.value)}
               />
             )}
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              GST type: <span className="font-semibold text-slate-900">{totals.isInterState ? 'IGST (inter-state)' : 'CGST + SGST (intra-state)'}</span>
-            </div>
-            <Toggle label="Prices include GST" description="Turn on if the rates you enter already include tax" checked={form.pricesIncludeTax} onChange={(value) => set('pricesIncludeTax', value)} />
+            {isInclusive ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs leading-relaxed text-sky-900">
+                <p className="font-semibold">Without tax format</p>
+                <p className="mt-0.5">
+                  Rates you enter are the final prices. GST is not shown on the printed {isInvoice ? 'bill' : 'document'}, and the total is printed as "Total Amount (Inclusive of all taxes)".
+                </p>
+                <p className="mt-1">The GST % on items only works out the tax inside the price for your GST reports. Keep it 0% if no GST applies.</p>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  GST type: <span className="font-semibold text-slate-900">{totals.isInterState ? 'IGST (inter-state)' : 'CGST + SGST (intra-state)'}</span>
+                </div>
+                <Toggle label="Prices include GST" description="Turn on if the rates you enter already include tax" checked={form.pricesIncludeTax} onChange={(value) => set('pricesIncludeTax', value)} />
+              </>
+            )}
           </div>
         </Card>
       </div>
@@ -512,7 +606,7 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
           <span>Unit</span>
           <span className="text-right">Rate (₹)</span>
           <span className="text-right">Disc %</span>
-          <span>GST</span>
+          <span>{isInclusive ? 'GST (incl.)' : 'GST'}</span>
           <span className="text-right">Amount</span>
           <span />
         </div>
@@ -663,14 +757,23 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
 
         <Card title="Summary" className="self-start lg:sticky lg:top-20">
           <div className="space-y-2.5">
-            <SummaryLine label={totals.totalTax ? 'Taxable Amount' : 'Subtotal'} value={formatAmount(totals.subtotal)} />
-            {totals.totalDiscount > 0 && <p className="-mt-1 text-right text-[11px] text-emerald-700">after item discounts of {formatCurrency(totals.totalDiscount)}</p>}
-            {totals.isInterState ? (
-              <SummaryLine label="IGST" value={formatAmount(totals.igst)} />
+            {isInclusive ? (
+              <>
+                <SummaryLine label="Items Total" value={formatAmount(totals.subtotal + totals.totalTax)} />
+                {totals.totalTax > 0 && <p className="-mt-1 text-right text-[11px] text-slate-500">includes GST of {formatCurrency(totals.totalTax)} (not printed)</p>}
+              </>
             ) : (
               <>
-                <SummaryLine label="CGST" value={formatAmount(totals.cgst)} />
-                <SummaryLine label="SGST" value={formatAmount(totals.sgst)} />
+                <SummaryLine label={totals.totalTax ? 'Taxable Amount' : 'Subtotal'} value={formatAmount(totals.subtotal)} />
+                {totals.totalDiscount > 0 && <p className="-mt-1 text-right text-[11px] text-emerald-700">after item discounts of {formatCurrency(totals.totalDiscount)}</p>}
+                {totals.isInterState ? (
+                  <SummaryLine label="IGST" value={formatAmount(totals.igst)} />
+                ) : (
+                  <>
+                    <SummaryLine label="CGST" value={formatAmount(totals.cgst)} />
+                    <SummaryLine label="SGST" value={formatAmount(totals.sgst)} />
+                  </>
+                )}
               </>
             )}
             <div className="flex items-center gap-2">
@@ -683,7 +786,7 @@ export default function DocumentForm({ mode, doc, docType, party, isEdit = false
             </div>
             {totals.roundOff !== 0 && <SummaryLine label="Round Off" value={formatAmount(totals.roundOff)} />}
             <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-              <span className="text-base font-semibold text-slate-900">Total</span>
+              <span className="text-base font-semibold text-slate-900">{isInclusive ? 'Total (incl. of all taxes)' : 'Total'}</span>
               <span className="text-xl font-bold text-slate-900 tabular-nums">{formatCurrency(totals.totalAmount)}</span>
             </div>
             <p className="text-xs text-slate-500">{amountToWords(totals.totalAmount)}</p>

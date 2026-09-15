@@ -76,6 +76,19 @@ export const SALES_TYPES = {
 
 export const QUOTE_TYPES = ['QUOTATION', 'ESTIMATE', 'PROFORMA'];
 
+// What the user picks at the top of the sales form. A "Bill" is a normal invoice in the
+// INCLUSIVE tax mode: final prices only, total printed as inclusive of all taxes.
+export const DOCUMENT_CHOICES = [
+  { key: 'TAX_INVOICE', docType: 'INVOICE', taxMode: 'GST', label: 'Tax Invoice', description: 'With GST breakup' },
+  { key: 'BILL', docType: 'INVOICE', taxMode: 'INCLUSIVE', label: 'Bill (Without Tax)', description: 'Total incl. of all taxes' },
+  { key: 'QUOTATION', docType: 'QUOTATION', label: 'Quotation', description: 'Price offer' },
+  { key: 'ESTIMATE', docType: 'ESTIMATE', label: 'Estimate', description: 'Approximate cost' },
+  { key: 'PROFORMA', docType: 'PROFORMA', label: 'Proforma Invoice', description: 'Before final invoice' }
+];
+
+export const documentLabel = (doc) =>
+  doc?.invoiceType === 'INVOICE' && doc?.taxMode === 'INCLUSIVE' ? 'Bill' : SALES_TYPES[doc?.invoiceType]?.label || 'Invoice';
+
 export const STATUS_META = {
   DRAFT: { label: 'Draft', tone: 'gray' },
   UNPAID: { label: 'Unpaid', tone: 'amber' },

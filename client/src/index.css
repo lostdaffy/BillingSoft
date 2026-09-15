@@ -97,6 +97,14 @@
     background: #fff;
   }
 
+  /* Same as PRINT_PAGE_STYLE, for when the page is printed with Ctrl+P directly */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .no-print {
     display: none !important;
   }

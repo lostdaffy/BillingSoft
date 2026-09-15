@@ -16,6 +16,9 @@ const invoiceSchema = new mongoose.Schema(
       enum: SALES_DOC_TYPES,
       default: 'INVOICE'
     },
+    // GST: tax breakup is printed. INCLUSIVE: the "without tax" format that prints only final
+    // prices with the total marked inclusive of taxes; GST is still worked out inside the price.
+    taxMode: { type: String, enum: ['GST', 'INCLUSIVE'], default: 'GST' },
     invoiceNumber: {
       type: String,
       required: true,

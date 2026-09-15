@@ -2,7 +2,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
 import api from '../../lib/api';
 import { useApi, useDocumentTitle } from '../../lib/hooks';
-import { SALES_TYPES } from '../../lib/constants';
+import { SALES_TYPES, documentLabel } from '../../lib/constants';
 import DocumentForm from '../../components/documents/DocumentForm';
 import { Button, EmptyState, ErrorState, PageHeader, PageLoader } from '../../components/ui';
 
@@ -13,7 +13,9 @@ export default function SalesForm() {
   const duplicateId = params.get('duplicate');
   const partyId = params.get('party');
   const requestedType = params.get('type');
-  const docType = SALES_TYPES[requestedType] ? requestedType : 'INVOICE';
+  // ?type=BILL opens the "Bill (Without Tax)" format, which is an invoice with inclusive pricing.
+  const requestedBill = requestedType === 'BILL';
+  const docType = requestedBill ? 'INVOICE' : SALES_TYPES[requestedType] ? requestedType : 'INVOICE';
 
   const { data, loading, error, reload } = useApi(async () => {
     const sourceId = id || duplicateId;
@@ -26,7 +28,7 @@ export default function SalesForm() {
 
   const doc = data?.doc;
   const effectiveType = doc?.invoiceType || docType;
-  const label = SALES_TYPES[effectiveType]?.label || 'Document';
+  const label = doc ? documentLabel(doc) : requestedBill ? 'Bill' : SALES_TYPES[effectiveType]?.label || 'Document';
   const title = isEdit ? `Edit ${label}` : duplicateId ? `Duplicate ${label}` : `New ${label}`;
   useDocumentTitle(title);
 
@@ -51,7 +53,15 @@ export default function SalesForm() {
   return (
     <>
       <PageHeader title={title} subtitle={isEdit ? doc.invoiceNumber : undefined} backTo={backTo} />
-      <DocumentForm key={`${id || 'new'}-${duplicateId || ''}-${docType}-${partyId || ''}`} mode="SALE" doc={doc} docType={effectiveType} party={data.party} isEdit={isEdit} />
+      <DocumentForm
+        key={`${id || 'new'}-${duplicateId || ''}-${requestedType || ''}-${partyId || ''}`}
+        mode="SALE"
+        doc={doc}
+        docType={effectiveType}
+        taxMode={requestedBill ? 'INCLUSIVE' : undefined}
+        party={data.party}
+        isEdit={isEdit}
+      />
     </>
   );
 }

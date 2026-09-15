@@ -4,7 +4,7 @@ import { useReactToPrint } from 'react-to-print';
 import { BanknotesIcon, LinkIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import api from '../lib/api';
 import { useApi, useDocumentTitle } from '../lib/hooks';
-import { SALES_TYPES } from '../lib/constants';
+import { documentLabel } from '../lib/constants';
 import { formatCurrency, formatDate } from '../lib/format';
 import { PRINT_PAGE_STYLE, safeFileName } from '../lib/print';
 import { APP_NAME } from '../config';
@@ -35,7 +35,7 @@ export default function PublicInvoice() {
     );
   }
 
-  const typeLabel = SALES_TYPES[invoice.invoiceType]?.label || 'Invoice';
+  const typeLabel = documentLabel(invoice);
   const upiId = company.bankDetails?.upiId;
   const payable = invoice.balanceDue > 0 ? invoice.balanceDue : 0;
   const canPay = invoice.invoiceType === 'INVOICE' && upiId && payable > 0 && data.settings?.showUpiQr !== false && invoice.status !== 'CANCELLED';

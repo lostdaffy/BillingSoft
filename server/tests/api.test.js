@@ -561,3 +561,69 @@ test('v1 invoices and products are upgraded in place', async () => {
 
   assert.equal((await runMigrations({ log: () => {} })).invoices, 0, 'migration is idempotent');
 });
+
+test('party email and Aadhaar: validated, kept only without GSTIN, masked on share link', async () => {
+  const { verhoeffCheckDigit } = require('../utils/aadhaar');
+  const base = '98765432101';
+  const aadhaar = base + verhoeffCheckDigit(base);
+  const wrong = base + ((verhoeffCheckDigit(base) + 1) % 10);
+  const spaced = `${aadhaar.slice(0, 4)} ${aadhaar.slice(4, 8)} ${aadhaar.slice(8)}`;
+
+  expectStatus(await call('POST', '/clients', { body: { name: 'Bad Aadhaar', aadhaar: wrong } }), 400);
+  let r = await call('POST', '/clients', { body: { name: 'Retail Buyer', email: 'Buyer@Mail.com', aadhaar: spaced } });
+  expectStatus(r, 201);
+  assert.equal(r.data.aadhaar, aadhaar);
+  assert.equal(r.data.email, 'buyer@mail.com');
+
+  r = await call('POST', '/clients', { body: { name: 'Registered Buyer', gst: '09ABCDE1234F1Z5', aadhaar } });
+  expectStatus(r, 201);
+  assert.equal(r.data.aadhaar, '', 'Aadhaar is not stored when a GSTIN is given');
+
+  const item = [{ description: 'Service', quantity: 1, rate: 100 }];
+  expectStatus(await call('POST', '/invoices', { body: { client: { name: 'X', aadhaar: wrong }, items: item } }), 400);
+  expectStatus(await call('POST', '/invoices', { body: { client: { name: 'X', email: 'not-an-email' }, items: item } }), 400);
+
+  r = await call('POST', '/invoices', { body: { client: { name: 'Retail Buyer', email: 'buyer@mail.com', aadhaar: spaced }, items: item } });
+  expectStatus(r, 201);
+  assert.equal(r.data.client.aadhaar, aadhaar);
+  assert.equal(r.data.client.email, 'buyer@mail.com');
+
+  const withGst = await call('POST', '/invoices', { body: { client: { name: 'Registered', gst: '09ABCDE1234F1Z5', aadhaar }, items: item } });
+  assert.equal(withGst.data.client.aadhaar, '');
+
+  const { token } = (await call('POST', `/invoices/${r.data._id}/share`)).data;
+  const shared = await call('GET', `/public/invoices/${token}`, { anonymous: true });
+  expectStatus(shared, 200);
+  assert.equal(shared.data.invoice.client.aadhaar, `XXXX XXXX ${aadhaar.slice(-4)}`);
+  assert.equal(shared.data.invoice.client.email, 'buyer@mail.com');
+});
+
+test('bill without tax: prices are GST-inclusive, format kept on edit and conversion', async () => {
+  const item = [{ description: 'Chair', quantity: 1, rate: 1180, taxRate: 18 }];
+  let r = await call('POST', '/invoices', { body: { client: { name: 'Walk-in Bill' }, items: item, taxMode: 'INCLUSIVE', pricesIncludeTax: false } });
+  expectStatus(r, 201);
+  const billId = r.data._id;
+  assert.equal(r.data.taxMode, 'INCLUSIVE');
+  assert.equal(r.data.pricesIncludeTax, true, 'forced on for the without-tax format');
+  assert.equal(r.data.subtotal, 1000);
+  assert.equal(r.data.cgst, 90);
+  assert.equal(r.data.sgst, 90);
+  assert.equal(r.data.totalAmount, 1180);
+
+  r = await call('PUT', `/invoices/${billId}`, { body: { pricesIncludeTax: false, items: item } });
+  assert.equal(r.data.totalAmount, 1180, 'still tax-inclusive after an edit');
+
+  r = await call('PUT', `/invoices/${billId}`, { body: { taxMode: 'GST', pricesIncludeTax: false } });
+  assert.equal(r.data.taxMode, 'GST');
+  assert.equal(r.data.totalAmount, 1392, 'switching to a tax invoice adds GST on top');
+
+  const quote = await call('POST', '/invoices', { body: { invoiceType: 'QUOTATION', client: { name: 'Quote' }, items: item, taxMode: 'INCLUSIVE' } });
+  expectStatus(quote, 201);
+  const converted = await call('POST', `/invoices/${quote.data._id}/convert`);
+  expectStatus(converted, 201);
+  assert.equal(converted.data.taxMode, 'INCLUSIVE');
+  assert.equal(converted.data.totalAmount, 1180);
+
+  const normal = await call('POST', '/invoices', { body: { client: { name: 'Default' }, items: [{ description: 'x', quantity: 1, rate: 100 }] } });
+  assert.equal(normal.data.taxMode, 'GST');
+});

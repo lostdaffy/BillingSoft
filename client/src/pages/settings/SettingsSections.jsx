@@ -133,7 +133,7 @@ export function BusinessProfileSettings() {
             <TextInput label="GSTIN" value={form.gstin} onChange={onGstin} maxLength={15} error={errors.gstin} hint="Leave blank if you are not GST registered" />
             <TextInput label="PAN" value={form.pan} onChange={(event) => set('pan', event.target.value.toUpperCase())} maxLength={10} />
             <TextInput label="Phone" inputMode="tel" {...bind('mobile')} />
-            <TextInput label="Email" type="email" {...bind('email')} error={errors.email} />
+            <TextInput label="Business Email" type="email" placeholder="accounts@yourbusiness.com" {...bind('email')} error={errors.email} hint="Printed on every invoice and quotation" />
             <TextInput label="Website" placeholder="www.yourbusiness.com" {...bind('website')} className="sm:col-span-2" />
           </div>
         </div>

@@ -24,7 +24,7 @@ import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../../components/Confirm';
 import { useApi, useDocumentTitle } from '../../lib/hooks';
-import { SALES_TYPES, paymentModeLabel, stateLabel } from '../../lib/constants';
+import { SALES_TYPES, documentLabel, paymentModeLabel, stateLabel } from '../../lib/constants';
 import { daysFromToday, formatCurrency, formatDate, whatsappLink } from '../../lib/format';
 import { PRINT_PAGE_STYLE, safeFileName } from '../../lib/print';
 import DocumentPreview, { PreviewFrame } from '../../components/documents/DocumentPreview';
@@ -72,7 +72,7 @@ export default function SalesView() {
   if (error && !doc) return <ErrorState error={error} onRetry={reload} />;
 
   const company = user?.company || {};
-  const meta = SALES_TYPES[doc.invoiceType] || SALES_TYPES.INVOICE;
+  const docLabel = documentLabel(doc);
   const isInvoice = doc.invoiceType === 'INVOICE';
   const listPath = isInvoice ? '/sales' : '/quotations';
   const editable = !['CONVERTED', 'CANCELLED'].includes(doc.status);
@@ -179,7 +179,7 @@ export default function SalesView() {
     <>
       <PageHeader
         backTo={listPath}
-        title={`${meta.label} ${doc.invoiceNumber}`}
+        title={`${docLabel} ${doc.invoiceNumber}`}
         badge={<StatusBadge status={doc.status} overdue={doc.isOverdue} />}
         subtitle={`${doc.client?.name || ''} · ${formatDate(doc.invoiceDate)}`}
         actions={
@@ -242,7 +242,7 @@ export default function SalesView() {
           {isInvoice && (
             <Card title="Payment Summary">
               <dl className="space-y-2">
-                <DetailRow label="Invoice Total" value={formatCurrency(doc.totalAmount)} />
+                <DetailRow label={`${docLabel} Total`} value={formatCurrency(doc.totalAmount)} />
                 <DetailRow label="Received" value={formatCurrency(doc.amountPaid)} className="text-emerald-700" />
                 <div className="border-t border-slate-100 pt-2">
                   <DetailRow label="Balance Due" value={formatCurrency(doc.balanceDue)} strong />

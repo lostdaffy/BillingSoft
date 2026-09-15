@@ -9,6 +9,7 @@ const { PARTY_TYPES } = require('../utils/constants');
 const { isValidGstin, stateCodeFromGstin, normaliseStateCode } = require('../utils/gst');
 const { num, round2 } = require('../utils/numbers');
 const { rangeFromQuery } = require('../utils/dates');
+const { isValidAadhaar, normaliseAadhaar } = require('../utils/aadhaar');
 const { str, escapeRegex } = require('../services/documents');
 
 const router = express.Router();
@@ -35,6 +36,8 @@ const applyPartyBody = (party, body = {}) => {
   party.gst = str(party.gst).toUpperCase();
   if (party.gst && !isValidGstin(party.gst)) throw new HttpError(400, 'GSTIN format is invalid (example: 09ABCDE1234F1Z5)');
   if (party.email && !EMAIL_REGEX.test(party.email)) throw new HttpError(400, 'Email address is invalid');
+  party.aadhaar = party.gst ? '' : normaliseAadhaar(party.aadhaar);
+  if (party.aadhaar && !isValidAadhaar(party.aadhaar)) throw new HttpError(400, 'Aadhaar number is invalid. Please check the 12 digits.');
   party.stateCode = stateCodeFromGstin(party.gst) || normaliseStateCode(party.stateCode);
 };
 

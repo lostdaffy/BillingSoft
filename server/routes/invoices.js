@@ -63,6 +63,9 @@ const assignFields = async (doc, body, req) => {
   if (body.discount !== undefined) doc.discount = Math.max(num(body.discount), 0);
   if (body.otherCharges !== undefined) doc.otherCharges = Math.max(num(body.otherCharges), 0);
   if (body.pricesIncludeTax !== undefined) doc.pricesIncludeTax = Boolean(body.pricesIncludeTax);
+  if (body.taxMode !== undefined) doc.taxMode = body.taxMode === 'INCLUSIVE' ? 'INCLUSIVE' : 'GST';
+  // A "without tax" document shows final prices, so those prices must already contain the GST.
+  if (doc.taxMode === 'INCLUSIVE') doc.pricesIncludeTax = true;
   if (body.placeOfSupply !== undefined) doc.placeOfSupply = normaliseStateCode(body.placeOfSupply);
   else if (body.client !== undefined) doc.placeOfSupply = doc.client.stateCode;
 };
@@ -321,6 +324,7 @@ router.post(
       shippingAddress: source.shippingAddress,
       placeOfSupply: source.placeOfSupply,
       pricesIncludeTax: source.pricesIncludeTax,
+      taxMode: source.taxMode,
       discount: source.discount,
       otherCharges: source.otherCharges,
       otherChargesLabel: source.otherChargesLabel,

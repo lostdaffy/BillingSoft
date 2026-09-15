@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { PARTY_TYPES, STATE_OPTIONS, isValidGstin, stateCodeFromGstin, stateName } from '../lib/constants';
+import { formatAadhaarInput, isValidAadhaar, normaliseAadhaar } from '../lib/aadhaar';
 import { Button, Modal, SegmentedControl, SelectInput, TextArea, TextInput } from './ui';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14,6 +15,7 @@ const toForm = (party, defaults) => ({
   email: party?.email || '',
   gst: party?.gst || '',
   panUid: party?.panUid || '',
+  aadhaar: formatAadhaarInput(party?.aadhaar),
   address: party?.address || '',
   city: party?.city || '',
   stateCode: party?.stateCode || '',
@@ -48,6 +50,7 @@ export default function PartyFormModal({ open, onClose, party, defaultType = 'CU
     const nextErrors = {};
     if (!form.name.trim()) nextErrors.name = 'Party name is required';
     if (form.gst && !isValidGstin(form.gst)) nextErrors.gst = 'Enter a valid 15-character GSTIN';
+    if (!form.gst && form.aadhaar && !isValidAadhaar(form.aadhaar)) nextErrors.aadhaar = 'Enter a valid 12-digit Aadhaar number';
     if (form.email && !EMAIL_REGEX.test(form.email.trim())) nextErrors.email = 'Enter a valid email address';
     if (form.mobile && !/^[+\d][\d\s-]{6,15}$/.test(form.mobile.trim())) nextErrors.mobile = 'Enter a valid phone number';
     setErrors(nextErrors);
@@ -58,6 +61,7 @@ export default function PartyFormModal({ open, onClose, party, defaultType = 'CU
       const payload = {
         ...form,
         state: stateName(form.stateCode),
+        aadhaar: form.gst ? '' : normaliseAadhaar(form.aadhaar),
         openingBalance: Number(form.openingBalance) || 0,
         creditDays: Number(form.creditDays) || 0
       };
@@ -99,6 +103,18 @@ export default function PartyFormModal({ open, onClose, party, defaultType = 'CU
           <TextInput label="Email" type="email" {...bind('email')} error={errors.email} placeholder="accounts@company.com" />
           <TextInput label="GSTIN" value={form.gst} onChange={onGstChange} error={errors.gst} hint="State fills in automatically from the GSTIN" maxLength={15} placeholder="09ABCDE1234F1Z5" />
           <TextInput label="PAN" value={form.panUid} onChange={(event) => update('panUid', event.target.value.toUpperCase())} maxLength={10} />
+          {!form.gst && (
+            <TextInput
+              label="Aadhaar Number"
+              value={form.aadhaar}
+              onChange={(event) => update('aadhaar', formatAadhaarInput(event.target.value))}
+              inputMode="numeric"
+              maxLength={14}
+              placeholder="XXXX XXXX XXXX"
+              error={errors.aadhaar}
+              hint="Optional, for parties without GSTIN"
+            />
+          )}
           <TextInput label="Contact Person" {...bind('contactPerson')} />
           <TextInput label="Credit Period (days)" type="number" min="0" {...bind('creditDays')} hint="Sets the due date on new invoices" />
         </div>

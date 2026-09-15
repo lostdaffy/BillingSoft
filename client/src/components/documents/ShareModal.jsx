@@ -2,14 +2,14 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { ChatBubbleLeftRightIcon, ClipboardDocumentIcon, EnvelopeIcon, LinkIcon } from '@heroicons/react/24/outline';
 import api from '../../lib/api';
-import { SALES_TYPES } from '../../lib/constants';
+import { documentLabel } from '../../lib/constants';
 import { formatCurrency, formatDate, whatsappLink } from '../../lib/format';
 import { Button, Modal } from '../ui';
 
 export default function ShareModal({ open, onClose, invoice, company, onTokenChange }) {
   const [token, setToken] = useState(invoice.shareToken || '');
   const [busy, setBusy] = useState(false);
-  const typeLabel = SALES_TYPES[invoice.invoiceType]?.label || 'Invoice';
+  const typeLabel = documentLabel(invoice);
   const url = token ? `${window.location.origin}/share/${token}` : '';
 
   const message = [

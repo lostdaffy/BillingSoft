@@ -58,7 +58,8 @@ const NAVIGATION = [
 ];
 
 const CREATE_ITEMS = [
-  { label: 'New Invoice', to: '/sales/new', icon: DocumentTextIcon },
+  { label: 'New Tax Invoice', to: '/sales/new', icon: DocumentTextIcon },
+  { label: 'New Bill (Without Tax)', to: '/sales/new?type=BILL', icon: DocumentTextIcon },
   { label: 'New Quotation', to: '/sales/new?type=QUOTATION', icon: DocumentDuplicateIcon },
   { label: 'New Purchase Bill', to: '/purchases/new', icon: ShoppingCartIcon },
   { label: 'Add Expense', to: '/expenses?new=1', icon: WalletIcon },

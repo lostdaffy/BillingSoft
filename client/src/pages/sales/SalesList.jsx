@@ -8,6 +8,7 @@ import { daysFromToday, formatCurrency, formatDate } from '../../lib/format';
 import { makeRange } from '../../lib/dates';
 import { cx } from '../../lib/cx';
 import {
+  Badge,
   Button,
   DateRangeFilter,
   EmptyState,
@@ -121,6 +122,7 @@ export default function SalesList({ kind }) {
                   <div className="min-w-0">
                     <p className="truncate font-medium text-slate-900">{invoice.client?.name}</p>
                     <p className="text-xs text-slate-500">
+                      {invoice.taxMode === 'INCLUSIVE' ? `${isInvoices ? 'Bill' : 'Incl. tax'} · ` : ''}
                       {invoice.invoiceNumber} · {formatDate(invoice.invoiceDate)}
                     </p>
                     <div className="mt-1.5">
@@ -156,7 +158,10 @@ export default function SalesList({ kind }) {
                   const open = !['DRAFT', 'CANCELLED'].includes(invoice.status);
                   return (
                     <tr key={invoice._id} className="row-link" onClick={() => navigate(`/sales/${invoice._id}`)}>
-                      <td className="font-semibold text-slate-900">{invoice.invoiceNumber}</td>
+                      <td className="font-semibold text-slate-900">
+                        {invoice.invoiceNumber}
+                        {invoice.taxMode === 'INCLUSIVE' && <Badge className="ml-2">{isInvoices ? 'Bill' : 'Incl. tax'}</Badge>}
+                      </td>
                       <td>{formatDate(invoice.invoiceDate)}</td>
                       <td>
                         <p className="max-w-56 truncate font-medium text-slate-800">{invoice.client?.name}</p>

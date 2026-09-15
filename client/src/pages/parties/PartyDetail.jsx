@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../../components/Confirm';
 import { useApi, useDocumentTitle } from '../../lib/hooks';
 import { stateLabel } from '../../lib/constants';
+import { maskAadhaar } from '../../lib/aadhaar';
 import { formatCurrency, formatDate, formatDateNumeric, whatsappLink } from '../../lib/format';
 import { makeRange, rangeLabel, rangeParams } from '../../lib/dates';
 import { downloadCsv } from '../../lib/csv';
@@ -300,6 +301,7 @@ export default function PartyDetail() {
               ['Email', party.email],
               ['GSTIN', party.gst],
               ['PAN', party.panUid],
+              ['Aadhaar', maskAadhaar(party.aadhaar)],
               ['Billing Address', address],
               ['Shipping Address', party.shippingAddress],
               ['Credit Period', party.creditDays ? `${party.creditDays} days` : ''],
